@@ -28,7 +28,7 @@ public class CustomUserDetails implements UserDetails {
     public Collection<? extends GrantedAuthority> getAuthorities() {
         List<GrantedAuthority> authorityList = new ArrayList<>();
 
-        switch (employees.getAuthorization()) {
+        switch (employees.getRole()) {
             case HRMANAGER : authorityList.add(getAuthority(Role.HRMANAGER));
             case MANAGER : authorityList.add(getAuthority(Role.MANAGER));
             case EMPLOYEE : authorityList.add(getAuthority(Role.EMPLOYEE));

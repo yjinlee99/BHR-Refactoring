@@ -1,24 +1,47 @@
-# relese v1.0.0
-# T3-R1-BE-Server
+# BHR Refactoring
 
-## 프로젝트 환경
-```
-JDK 17
-SPRING BOOT 3.2.3
-Ubuntu 22.04.3 LTS
-MariaDB 10.11.7
-```
-## 프로젝트 실행 방법 (Intellij) 
-1. Git clone
-2. Intellij 내의 환경 변수 세팅
-   (방법 참고 : https://lahezy.tistory.com/105 )
- ```
- // JWT 
- JWT_SECRET (영어로 아무거나 길게 치면 됨) 
- // DB (자신의 MariaDB 서버를 사용하거나, 저희 팀에게 문의해 주세요)
- SPRING_DATASOURCE_DRIVER_CLASS_NAME
- SPRING_DATASOURCE_PASSWORD
- SPRING_DATASOURCE_URL
- SPRING_DATASOURCE_USERNAME
- ```
-3. 프로젝트 실행(`BhrApplication.java` 파일 내의 `main` 메소드 실행)
+기존 팀 프로젝트로 진행했던 인사관리 시스템을 개인적으로 다시 분석하고 리팩토링하는 프로젝트입니다.
+
+## 프로젝트 소개
+
+사원 정보, 근태, 연차, 부서 관리 등의 기능을 제공하는 인사관리 시스템입니다.
+
+기존 프로젝트의 기능을 유지하면서 코드 구조, 예외 처리, 테스트, 환경 설정 등을 개선하는 것을 목표로 합니다.
+
+## 리팩토링 목표
+
+- 프로젝트 구조 및 패키지 정리
+- Controller, Service, Repository 역할 분리
+- Request / Response DTO 분리
+- 공통 예외 처리 적용
+- 환경별 설정 파일 분리
+- 테스트 코드 보강
+- 불필요한 의존성과 빌드 파일 정리
+- API 문서화
+
+## 기술 스택
+
+- Java
+- Spring Boot
+- Spring Data JPA
+- MariaDB
+- Maven
+
+## 진행 상황
+
+- [ ] 저장소 및 빌드 파일 정리
+- [ ] 프로젝트 실행 환경 점검
+- [ ] 공통 예외 처리 구조 개선
+- [ ] 연차 도메인 리팩토링
+- [ ] 근태 도메인 리팩토링
+- [ ] 사원 도메인 리팩토링
+- [ ] 테스트 코드 작성
+- [ ] API 문서 작성
+
+## 원본 프로젝트
+
+본 프로젝트는 기존 팀 프로젝트를 기반으로 개인 학습 및 포트폴리오 목적으로 리팩토링한 프로젝트입니다.
+
+원본 프로젝트 문서:
+
+https://github.com/9-1379/T3-R0-Document

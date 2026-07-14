@@ -1,0 +1,18 @@
+spring:
+  jwt:
+    secret: test-jwt-secret-key-for-bhr-refactoring-project-123456789
+
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:bhr-test;MODE=MariaDB;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+  sql:
+    init:
+      mode: never

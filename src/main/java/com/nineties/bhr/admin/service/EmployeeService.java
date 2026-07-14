@@ -56,7 +56,7 @@ public class EmployeeService {
         dto.setHireDate(employee.getHireDate());
         dto.setUsername(employee.getUsername());
         dto.setStatus(employee.getStatus().name());
-        dto.setAuthorization(employee.getAuthorization().name());
+        dto.setAuthorization(employee.getRole().name());
         dto.setIntroduction(employee.getIntroduction());
         if (employee.getAddress() != null) { // 주소 정보 추가
             dto.setAddress(employee.getAddress());
@@ -86,7 +86,7 @@ public class EmployeeService {
         employee.setJobId(updatedEmployee.getJobId());
         employee.setHireDate(updatedEmployee.getHireDate());
         employee.setStatus(Status.valueOf(updatedEmployee.getStatus())); // Status 업데이트
-        employee.setAuthorization(Role.valueOf(updatedEmployee.getAuthorization())); // Authorization 업데이트
+        employee.setRole(Role.valueOf(updatedEmployee.getAuthorization())); // Authorization 업데이트
         employee.setIntroduction(updatedEmployee.getIntroduction()); // Introduction 업데이트
 
         // 주소 업데이트

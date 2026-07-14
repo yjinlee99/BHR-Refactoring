@@ -17,8 +17,6 @@ import org.springframework.stereotype.Service;
 import java.util.Date;
 import java.util.List;
 
-import static java.rmi.server.LogStream.log;
-
 @Service
 public class JoinService {
 
@@ -83,9 +81,9 @@ public class JoinService {
         data.setAddress(address);
         data.setUsername(username);
         data.setPassword(bCryptPasswordEncoder.encode(password));
-        data.setAuthorization(Role.HRMANAGER);
+        data.setRole(Role.HRMANAGER);
         data.setStatus(Status.WORKING);
-        data.setAuthorization(Role.EMPLOYEE);
+        data.setRole(Role.EMPLOYEE);
 
         Employees emp = employeesRepository.save(data);
         log.info("신규 직원 생성 완료 : {}", emp.getUsername());

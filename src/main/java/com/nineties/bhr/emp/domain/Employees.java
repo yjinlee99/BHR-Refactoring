@@ -79,9 +79,9 @@ public class Employees {
     @Enumerated (EnumType.STRING)
     private Status status;
 
-    @Column(nullable = false)
-    @Enumerated (EnumType.STRING)
-    private Role authorization;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "employee_role", nullable = false)
+    private Role role;
 
     @ManyToOne
     @JoinColumn(name = "dept_id")

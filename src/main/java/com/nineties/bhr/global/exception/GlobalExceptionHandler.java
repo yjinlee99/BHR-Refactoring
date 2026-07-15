@@ -1,4 +1,4 @@
-package com.nineties.bhr.exception;
+package com.nineties.bhr.global.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,8 +1,8 @@
-package com.nineties.bhr.config;
+package com.nineties.bhr.global.security;
 
-import com.nineties.bhr.config.jwt.JWTFilter;
-import com.nineties.bhr.config.jwt.JWTUtil;
-import com.nineties.bhr.config.jwt.LoginFilter;
+import com.nineties.bhr.global.security.jwt.JWTFilter;
+import com.nineties.bhr.global.security.jwt.JWTUtil;
+import com.nineties.bhr.global.security.jwt.LoginFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

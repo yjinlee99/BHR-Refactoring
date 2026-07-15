@@ -1,4 +1,4 @@
-package com.nineties.bhr.config.jwt;
+package com.nineties.bhr.global.security.jwt;
 
 import com.nineties.bhr.employee.domain.Employees;
 import com.nineties.bhr.employee.domain.Role;

@@ -1,4 +1,4 @@
-package com.nineties.bhr.config;
+package com.nineties.bhr.global.config;
 
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;

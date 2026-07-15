@@ -1,6 +1,6 @@
-package com.nineties.bhr.emp.repository;
+package com.nineties.bhr.employee.repository;
 
-import com.nineties.bhr.emp.domain.Dept;
+import com.nineties.bhr.employee.domain.Dept;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;

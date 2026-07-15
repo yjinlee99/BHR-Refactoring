@@ -1,8 +1,8 @@
 package com.nineties.bhr.config.jwt;
 
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.domain.Role;
-import com.nineties.bhr.emp.dto.CustomUserDetails;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.domain.Role;
+import com.nineties.bhr.employee.dto.CustomUserDetails;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

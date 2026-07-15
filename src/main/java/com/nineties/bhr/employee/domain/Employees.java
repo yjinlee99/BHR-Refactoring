@@ -1,4 +1,4 @@
-package com.nineties.bhr.emp.domain;
+package com.nineties.bhr.employee.domain;
 
 import com.nineties.bhr.annual.domain.Annual;
 import com.nineties.bhr.annual.domain.AnnualList;
@@ -23,7 +23,7 @@ public class Employees {
     @GeneratedValue(generator = "custom-sequence-gen")
     @GenericGenerator(
             name = "custom-sequence-gen",
-            strategy = "com.nineties.bhr.emp.domain.CustomSequenceGenerator"
+            type = CustomSequenceGenerator.class
     )
     private String id;
 

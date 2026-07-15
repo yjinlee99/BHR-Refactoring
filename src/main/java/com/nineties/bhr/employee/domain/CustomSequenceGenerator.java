@@ -1,4 +1,4 @@
-package com.nineties.bhr.emp.domain;
+package com.nineties.bhr.employee.domain;
 
 import org.hibernate.HibernateException;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;

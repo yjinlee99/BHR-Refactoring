@@ -1,4 +1,4 @@
-package com.nineties.bhr.emp.dto;
+package com.nineties.bhr.employee.dto;
 
 public interface EmployeeProfileProjection {
     String getId();

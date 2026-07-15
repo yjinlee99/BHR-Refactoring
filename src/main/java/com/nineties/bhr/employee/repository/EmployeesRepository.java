@@ -1,9 +1,9 @@
-package com.nineties.bhr.emp.repository;
+package com.nineties.bhr.employee.repository;
 
 
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.dto.EmployeeProfileProjection;
-import com.nineties.bhr.emp.dto.EmployeeProjection;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.dto.EmployeeProfileProjection;
+import com.nineties.bhr.employee.dto.EmployeeProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

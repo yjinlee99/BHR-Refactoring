@@ -1,6 +1,6 @@
 package com.nineties.bhr.config.jwt;
 
-import com.nineties.bhr.emp.dto.CustomUserDetails;
+import com.nineties.bhr.employee.dto.CustomUserDetails;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

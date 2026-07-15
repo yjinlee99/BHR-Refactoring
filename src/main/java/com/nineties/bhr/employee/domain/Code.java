@@ -1,4 +1,4 @@
-package com.nineties.bhr.emp.domain;
+package com.nineties.bhr.employee.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

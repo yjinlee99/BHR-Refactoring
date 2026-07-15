@@ -1,9 +1,8 @@
-package com.nineties.bhr.emp.controller;
+package com.nineties.bhr.employee.controller;
 
 
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.dto.EmployeeProjection;
-import com.nineties.bhr.emp.service.HrCardService;
+import com.nineties.bhr.employee.dto.EmployeeProjection;
+import com.nineties.bhr.employee.service.HrCardService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

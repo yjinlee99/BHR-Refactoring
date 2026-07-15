@@ -5,8 +5,8 @@ import com.nineties.bhr.annual.dto.AdminAnnualDTO;
 import com.nineties.bhr.annual.dto.AdminAnnualStatusDTO;
 import com.nineties.bhr.annual.repository.AnnualRepository;
 import com.nineties.bhr.annual.repository.AnnualListRepository;
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

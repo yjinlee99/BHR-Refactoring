@@ -1,4 +1,4 @@
-package com.nineties.bhr.emp.dto;
+package com.nineties.bhr.employee.dto;
 
 import lombok.Getter;
 import lombok.Setter;

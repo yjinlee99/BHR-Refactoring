@@ -1,14 +1,10 @@
-package com.nineties.bhr.emp.service;
+package com.nineties.bhr.employee.service;
 
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.dto.EmployeeProfileDTO;
-import com.nineties.bhr.emp.dto.EmployeeProfileProjection;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.dto.EmployeeProfileDTO;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class EmployeeProfileService {

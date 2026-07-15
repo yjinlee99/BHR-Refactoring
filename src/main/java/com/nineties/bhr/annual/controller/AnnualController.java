@@ -1,4 +1,4 @@
-package com.nineties.bhr.annual.cotroller;
+package com.nineties.bhr.annual.controller;
 
 import com.nineties.bhr.annual.dto.AnnualListDTO;
 import com.nineties.bhr.annual.service.AnnualListService;

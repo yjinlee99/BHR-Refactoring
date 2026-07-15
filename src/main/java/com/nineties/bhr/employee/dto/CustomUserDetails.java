@@ -1,7 +1,7 @@
-package com.nineties.bhr.emp.dto;
+package com.nineties.bhr.employee.dto;
 
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.domain.Role;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.domain.Role;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

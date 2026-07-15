@@ -1,6 +1,6 @@
 package com.nineties.bhr.admin.dto;
 
-import com.nineties.bhr.emp.domain.Address;
+import com.nineties.bhr.employee.domain.Address;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

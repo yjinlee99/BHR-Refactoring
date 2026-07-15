@@ -1,8 +1,7 @@
 package com.nineties.bhr.attendance.repository;
 
 import com.nineties.bhr.attendance.domain.Attendance;
-import com.nineties.bhr.attendance.domain.AttendanceStatus;
-import com.nineties.bhr.emp.domain.Employees;
+import com.nineties.bhr.employee.domain.Employees;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;

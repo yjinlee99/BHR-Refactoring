@@ -1,7 +1,4 @@
-package com.nineties.bhr.emp.dto;
-
-import lombok.Getter;
-import lombok.Setter;
+package com.nineties.bhr.employee.dto;
 
 public interface EmployeeProjection {
     String getId();

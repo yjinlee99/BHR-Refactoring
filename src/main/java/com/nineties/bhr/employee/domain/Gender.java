@@ -1,10 +1,10 @@
-package com.nineties.bhr.emp.domain;
+package com.nineties.bhr.employee.domain;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum Status {
-    WORKING, REST, LEAVE;
+public enum Gender {
+    MALE, FEMALE;
 }

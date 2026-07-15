@@ -1,8 +1,8 @@
-package com.nineties.bhr.emp.service;
+package com.nineties.bhr.employee.service;
 
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.dto.CustomUserDetails;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.dto.CustomUserDetails;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

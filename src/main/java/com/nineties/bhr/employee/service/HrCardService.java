@@ -1,10 +1,9 @@
-package com.nineties.bhr.emp.service;
+package com.nineties.bhr.employee.service;
 
 
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.dto.EmployeeProjection;
-import com.nineties.bhr.emp.repository.DeptRepository;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.dto.EmployeeProjection;
+import com.nineties.bhr.employee.repository.DeptRepository;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

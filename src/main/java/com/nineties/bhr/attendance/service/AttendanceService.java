@@ -4,15 +4,13 @@ import com.nineties.bhr.attendance.domain.Attendance;
 import com.nineties.bhr.attendance.domain.AttendanceStatus;
 import com.nineties.bhr.attendance.dto.AttendanceDTO;
 import com.nineties.bhr.attendance.repository.AttendanceRepository;
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.*;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 @Service

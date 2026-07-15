@@ -1,10 +1,10 @@
 package com.nineties.bhr.admin.service;
 
 import com.nineties.bhr.badge.service.BadgeService;
-import com.nineties.bhr.emp.domain.Dept;
-import com.nineties.bhr.emp.repository.DeptRepository;
-import com.nineties.bhr.emp.domain.*;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.domain.Dept;
+import com.nineties.bhr.employee.repository.DeptRepository;
+import com.nineties.bhr.employee.domain.*;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import com.nineties.bhr.admin.dto.JoinDTO;
 import com.nineties.bhr.admin.dto.JoinPageDTO;
 import com.nineties.bhr.sequence.domain.SequenceTable;

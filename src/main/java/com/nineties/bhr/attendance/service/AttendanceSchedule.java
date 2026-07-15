@@ -4,12 +4,10 @@ import com.nineties.bhr.annual.repository.AnnualListRepository;
 import com.nineties.bhr.attendance.domain.Attendance;
 import com.nineties.bhr.attendance.domain.AttendanceStatus;
 import com.nineties.bhr.attendance.repository.AttendanceRepository;
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;

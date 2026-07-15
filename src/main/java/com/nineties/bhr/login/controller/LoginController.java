@@ -1,8 +1,8 @@
 package com.nineties.bhr.login.controller;
 
 
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import com.nineties.bhr.login.dto.RoleInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

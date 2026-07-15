@@ -1,9 +1,7 @@
 package com.nineties.bhr.annual.domain;
 
-import com.nineties.bhr.emp.domain.Employees;
+import com.nineties.bhr.employee.domain.Employees;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 @Data
 public class AnnualPK {

@@ -4,8 +4,8 @@ import com.nineties.bhr.annual.domain.AnnualList;
 import com.nineties.bhr.annual.dto.AnnualListDTO;
 import com.nineties.bhr.annual.mapper.AnnualMapper;
 import com.nineties.bhr.annual.repository.AnnualListRepository;
-import com.nineties.bhr.emp.domain.Employees;
-import com.nineties.bhr.emp.repository.EmployeesRepository;
+import com.nineties.bhr.employee.domain.Employees;
+import com.nineties.bhr.employee.repository.EmployeesRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

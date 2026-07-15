@@ -1,7 +1,7 @@
 package com.nineties.bhr.admin.dto;
 
-import com.nineties.bhr.emp.domain.Address;
-import com.nineties.bhr.emp.domain.Gender;
+import com.nineties.bhr.employee.domain.Address;
+import com.nineties.bhr.employee.domain.Gender;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

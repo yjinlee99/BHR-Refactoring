@@ -2,8 +2,7 @@ package com.nineties.bhr.badge.repository;
 
 import com.nineties.bhr.badge.domain.BadgeMaster;
 import com.nineties.bhr.badge.domain.EmpBadge;
-import com.nineties.bhr.emp.domain.Employees;
-import org.springframework.data.domain.Pageable;
+import com.nineties.bhr.employee.domain.Employees;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

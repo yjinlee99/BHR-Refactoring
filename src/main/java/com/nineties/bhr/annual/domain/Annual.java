@@ -1,10 +1,8 @@
 package com.nineties.bhr.annual.domain;
 
-import com.nineties.bhr.emp.domain.Employees;
+import com.nineties.bhr.employee.domain.Employees;
 import jakarta.persistence.*;
 import lombok.Data;
-
-import java.io.Serializable;
 
 @Entity
 @Data

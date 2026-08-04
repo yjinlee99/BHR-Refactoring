@@ -40,7 +40,7 @@ public class BadgeManageService {
     public void disableBadgeAndRelatedEmpBadges(String badgeName) {
         BadgeMaster badgeMaster = badgeMasterRepository.findByBadgeName(badgeName);
         if (badgeMaster == null) {
-            throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+            throw new BadgeNotFoundException(badgeName);
         }
 
         // 배지 상태를 Disabled로 설정
@@ -91,7 +91,7 @@ public class BadgeManageService {
                 activeBadgeService.activateWorkLifeBalanceBadge();
                 break;
             default:
-                throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+                throw new BadgeNotFoundException(badgeName);
         }
     }
 

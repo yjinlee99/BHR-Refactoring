@@ -53,7 +53,7 @@ public class ActiveBadgeService {
     private void activateAndAssignGenerationBadge(String badgeName, int startYear, int endYear) {
         BadgeMaster badge = badgeMasterRepository.findByBadgeName(badgeName);
         if (badge == null) {
-            throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+            throw new BadgeNotFoundException(badgeName);
         }
 
         // 배지 상태를 Enabled로 설정
@@ -82,7 +82,7 @@ public class ActiveBadgeService {
         BadgeMaster newbieBadge = badgeMasterRepository.findByBadgeName(badgeName);
 
         if (newbieBadge == null) {
-            throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+            throw new BadgeNotFoundException(badgeName);
         }
 
         // 배지 상태를 Enabled로 설정
@@ -111,7 +111,7 @@ public class ActiveBadgeService {
         BadgeMaster nightOwlBadge = badgeMasterRepository.findByBadgeName(badgeName);
 
         if (nightOwlBadge == null) {
-            throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+            throw new BadgeNotFoundException(badgeName);
         }
 
         // 배지 상태를 Enabled로 설정
@@ -130,7 +130,7 @@ public class ActiveBadgeService {
         BadgeMaster legendBadge = badgeMasterRepository.findByBadgeName(badgeName);
 
         if (legendBadge == null) {
-            throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+            throw new BadgeNotFoundException(badgeName);
         }
 
         // 배지 상태를 Enabled로 설정
@@ -149,7 +149,7 @@ public class ActiveBadgeService {
         BadgeMaster dobbyBadge = badgeMasterRepository.findByBadgeName(badgeName);
 
         if (dobbyBadge == null) {
-            throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+            throw new BadgeNotFoundException(badgeName);
         }
 
         // 배지 상태를 Enabled로 설정
@@ -169,7 +169,7 @@ public class ActiveBadgeService {
         BadgeMaster workLifeBalanceBadge = badgeMasterRepository.findByBadgeName(badgeName);
 
         if (workLifeBalanceBadge == null) {
-            throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+            throw new BadgeNotFoundException(badgeName);
         }
 
         // 배지 상태를 Enabled로 설정

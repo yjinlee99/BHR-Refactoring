@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 public enum ErrorCode {
     BADGE_NOT_FOUND(

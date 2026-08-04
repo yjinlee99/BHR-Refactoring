@@ -1,5 +1,8 @@
 package com.nineties.bhr.global.exception;
 
+import lombok.Getter;
+
+@Getter
 public class BusinessException extends RuntimeException {
 
     private final ErrorCode errorCode;

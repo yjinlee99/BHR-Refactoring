@@ -19,11 +19,11 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiErrorResponse> handleNotFoundException(
-            BadgeNotFoundException ex,
+    public ResponseEntity<ApiErrorResponse> handleBusinessException(
+            BusinessException ex,
             HttpServletRequest request
     ) {
-        ErrorCode errorCode = ErrorCode.BADGE_NOT_FOUND;
+        ErrorCode errorCode = ex.getErrorCode();
 
         ApiErrorResponse response = ApiErrorResponse.of(
                 errorCode,

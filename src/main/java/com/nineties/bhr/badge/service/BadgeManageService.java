@@ -37,10 +37,10 @@ public class BadgeManageService {
 
     //배지 비활성화
     @Transactional
-    public boolean disableBadgeAndRelatedEmpBadges(String badgeName) {
+    public void disableBadgeAndRelatedEmpBadges(String badgeName) {
         BadgeMaster badgeMaster = badgeMasterRepository.findByBadgeName(badgeName);
         if (badgeMaster == null) {
-            throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+            throw new BadgeNotFoundException(badgeName);
         }
 
         // 배지 상태를 Disabled로 설정
@@ -60,8 +60,7 @@ public class BadgeManageService {
                     empBadgeRepository.save(empBadge);
                 });
 
-        log.info("{} 배지 비활성화 완료", badgeMaster.getBadgeName());
-        return true; // 성공적으로 비활성화 및 관련 EmpBadge 종료 처리됨
+        log.info("{} 배지 비활성화 완료", badgeMaster.getBadgeName()); // 성공적으로 비활성화 및 관련 EmpBadge 종료 처리됨
     }
 
     // 배지 활성화
@@ -92,7 +91,7 @@ public class BadgeManageService {
                 activeBadgeService.activateWorkLifeBalanceBadge();
                 break;
             default:
-                throw new BadgeNotFoundException("배지를 찾을 수 없습니다: " + badgeName);
+                throw new BadgeNotFoundException(badgeName);
         }
     }
 

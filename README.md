@@ -89,3 +89,63 @@ https://github.com/9-1379/T3-R0-Document
 
 </details>
 
+
+<details>
+<summary><strong>2026-08-05 — 공통 에러 응답 구조 개선</strong></summary>
+
+### 기존 구조의 문제
+
+- API마다 에러 응답 구조가 문자열, 필드별 객체, Spring 기본 응답 등 서로 달랐습니다.
+- 동일한 리소스 조회 실패 상황에서도 상태 코드가 `400`, `404`, `500`으로 다르게 반환되었습니다.
+- 공통 에러 코드가 없어 프론트엔드에서 API별로 예외 응답을 별도로 처리해야 했습니다.
+- 일부 Controller에서 직접 `try-catch`를 사용하여 예외 처리 코드가 분산되어 있었습니다.
+
+### 공통 에러 형식 선택
+
+Spring의 `ProblemDetail` 대신 직접 정의한 `ApiErrorResponse`를 사용했습니다.
+
+공통 에러 응답 구조를 직접 설계하면서 각 필드의 역할과 예외 처리 흐름을 명확히 이해하고, 프로젝트에서 필요한 `timestamp`, `status`, `code`, `message`, `path`를 일관된 형식으로 제공하기 위해 선택했습니다.
+
+### 변경한 클래스와 처리 흐름
+
+- `ErrorCode`
+  - HTTP 상태 코드, 에러 코드, 기본 메시지를 한곳에서 관리합니다.
+- `ApiErrorResponse`
+  - 모든 예외 응답이 동일한 필드를 사용하도록 정의했습니다.
+- `BusinessException`
+  - 예상 가능한 비즈니스 예외의 공통 부모 클래스로 사용했습니다.
+- `BadgeNotFoundException`
+  - 존재하지 않는 배지를 요청했을 때 `BADGE_NOT_FOUND` 에러 코드를 포함하여 발생하도록 변경했습니다.
+- `GlobalExceptionHandler`
+  - `@RestControllerAdvice`에서 비즈니스 예외와 예상하지 못한 예외를 공통 처리하도록 변경했습니다.
+- `AdminBadgeController`
+  - 활성화·비활성화 API의 `try-catch`와 문자열 응답을 제거하고, 성공 시 `204 No Content`를 반환하도록 변경했습니다.
+- `BadgeManageService`
+  - 배지를 찾을 수 없는 경우 `BadgeNotFoundException`을 발생시키도록 통일했습니다.
+
+처리 흐름은 다음과 같습니다.
+
+`Controller → Service → BusinessException → GlobalExceptionHandler → ApiErrorResponse`
+
+예상하지 못한 오류는 `500 Internal Server Error`로 처리하며, 내부 예외 메시지와 스택 트레이스는 응답에 노출하지 않고 서버 로그에만 기록하도록 했습니다.
+
+### 테스트 결과
+
+Controller부터 실제 Service와 Repository, 전역 예외 처리까지 확인할 수 있도록 통합 테스트를 작성했습니다.
+
+- 배지 활성화 성공: `204 No Content`
+- 배지 비활성화 성공: `204 No Content`
+- 존재하지 않는 배지 활성화: `404 Not Found` 및 공통 에러 응답
+- 존재하지 않는 배지 비활성화: `404 Not Found` 및 공통 에러 응답
+- 예상하지 못한 오류: 내부 메시지를 노출하지 않는 `500 Internal Server Error`
+
+활성화와 비활성화 API가 동일한 에러 응답 구조를 사용하는 것을 확인했습니다.
+
+### 아직 적용하지 않은 범위
+
+현재 공통 에러 응답은 배지 활성화·비활성화 API에만 적용했습니다.
+
+입력값 검증 오류는 공통 응답 형식에 포함했지만, 다음 비즈니스 및 인증 오류는 기존 처리 방식을 유지하고 있으며 추후 순차적으로 적용할 예정입니다.
+
+</details>
+

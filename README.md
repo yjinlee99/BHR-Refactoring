@@ -93,6 +93,21 @@ https://github.com/9-1379/T3-R0-Document
 <details>
 <summary><strong>2026-08-05 — 공통 에러 응답 구조 개선</strong></summary>
 
+
+### 현재 에러 처리 상태 분석
+
+| API | 발생 조건 | 현재 상태 코드 | 현재 응답 본문 | 문제점 |
+|---|---|---|---|---|
+| 배지 활성화 | 존재하지 않는 배지 이름으로 활성화 요청 | `400 Bad Request` | `배지를 찾을 수 없습니다: 없는배지` | Controller에서 `try-catch`로 예외를 직접 처리하고 일반 문자열을 반환한다. 존재하지 않는 리소스에 `400`을 사용하고 있어 상태 코드도 적절하지 않다. |
+| 배지 비활성화 | 존재하지 않는 배지 이름으로 비활성화 요청 | `500 Internal Server Error` | `{"timestamp":"...","status":500,"error":"Internal Server Error","path":"/api/admin/badge/deactivate"}` | 존재하지 않는 배지는 예상 가능한 오류인데 서버 내부 오류인 `500`으로 처리된다. 구체적인 오류 메시지와 고정된 에러 코드도 제공되지 않는다. |
+| 회원가입 | 필수 입력값 없이 빈 JSON 객체 전송 | `400 Bad Request` | `birthday`, `jobId`, `password`, `hireDate`, `phoneNumber`, `gender`, `name`, `position`, `username`의 필드별 검증 메시지 객체 | 필드별 오류를 확인할 수 있지만 다른 API의 오류 응답 형식과 일치하지 않는다. 같은 시스템에서 오류 상황마다 서로 다른 JSON 구조를 사용한다. |
+| 회원가입 | 이미 존재하는 아이디로 다시 가입 요청 | `400 Bad Request` | `{"message":"Username 'duplicate_test' already exists."}` | 같은 회원가입 API에서도 입력값 검증 실패 응답과 중복 아이디 응답의 구조가 다르다. Controller가 모든 `Exception`을 잡아 `400`으로 반환하므로 다른 내부 오류도 잘못 처리될 수 있다. |
+| 사원 퇴직 | 존재하지 않는 사원 ID `e9999`로 퇴직 요청 | `404 Not Found` | `{"timestamp":"...","status":404,"error":"Not Found","path":"/api/employees/e9999/retire"}` | 상태 코드는 적절하지만 구체적인 실패 이유와 에러 코드가 없다. 모든 `RuntimeException`을 `404`로 처리해 다른 오류까지 사원 미존재 오류로 숨길 가능성이 있다. |
+| 로그인 | 존재하는 아이디에 잘못된 비밀번호 입력 | `401 Unauthorized` | 응답 본문 없음 | 로그인 실패를 나타내는 메시지나 에러 코드가 없어 클라이언트가 실패 원인을 확인하기 어렵다. 다른 API의 오류 응답 구조와도 일치하지 않는다. |
+
+분석 결과 API마다 일반 문자열, 필드별 객체, Spring 기본 오류 응답, 빈 응답 등 서로 다른 형식을 사용하고 있었다. 비슷한 오류 상황에서도 상태 코드가 일관되지 않았으며, 프론트엔드에서는 API별 응답 구조에 맞춰 별도의 오류 처리 로직을 작성해야 하는 문제가 있었다.
+
+
 ### 기존 구조의 문제
 
 - API마다 에러 응답 구조가 문자열, 필드별 객체, Spring 기본 응답 등 서로 달랐습니다.

@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 })
 @AutoConfigureMockMvc(addFilters = false)
 @Transactional
-class AdminBadgeControllerIntegrationTest {
+class AdminBadgeControllerTest {
 
     private static final String TEST_BADGE_NAME = "X세대";
     private static final String NOT_FOUND_BADGE_NAME = "없는배지";
@@ -185,4 +186,15 @@ class AdminBadgeControllerIntegrationTest {
                         not(containsString(internalMessage))
                 ));
     }
+
+    @Test
+    @DisplayName("배지 이름 파라미터가 누락되면 400을 반환한다")
+    void activateBadge_missingBadgeName() throws Exception {
+        mockMvc.perform(
+                        post("/api/admin/badge/activate")
+                )
+                .andExpect(status().isBadRequest());
+    }
+
+
 }

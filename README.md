@@ -160,7 +160,128 @@ Controller부터 실제 Service와 Repository, 전역 예외 처리까지 확인
 
 현재 공통 에러 응답은 배지 활성화·비활성화 API에만 적용했습니다.
 
-입력값 검증 오류는 공통 응답 형식에 포함했지만, 다음 비즈니스 및 인증 오류는 기존 처리 방식을 유지하고 있으며 추후 순차적으로 적용할 예정입니다.
+입력값 검증 오류는 `400 Bad Request`로 처리하고 있지만 필드별 검증 메시지 객체 형식을 사용하고 있어 현재 `ApiErrorResponse`와는 형식이 다릅니다.
+
+중복 아이디, 사원 퇴직, 로그인 인증 실패 등 다른 비즈니스 및 인증 오류는 기존 처리 방식을 유지하고 있으며 추후 순차적으로 적용할 예정입니다.
+</details>
+
+<details>
+<summary><strong>2026-08-10 — 공통 에러 처리 보완 및 오류 응답 재확인</strong></summary>
+
+<br>
+
+### 오류 응답 재확인
+
+공통 에러 처리 적용 이후 기존 오류 상황을 다시 실행하여 상태 코드와 응답 형식을 확인했습니다.
+
+같은 API에서도 요청 조건에 따라 서로 다른 예외가 발생할 수 있어 발생 조건별로 구분하여 확인했습니다.
+
+| API | 발생 조건 | 현재 상태 코드 | 현재 응답 본문 | 문제점 |
+|---|---|---|---|---|
+| 배지 활성화 | 존재하지 않는 배지 이름으로 요청 | `404 Not Found` | `ApiErrorResponse` (`code: BADGE_NOT_FOUND`) | 공통 에러 응답이 정상 적용되었습니다. |
+| 배지 활성화 | 빈 배지 이름 전달 (`badgeName=`) | `404 Not Found` | `ApiErrorResponse` (`code: BADGE_NOT_FOUND`) | 빈 입력값을 존재하지 않는 배지로 처리하고 있어 입력값 검증 여부를 추가로 검토할 필요가 있습니다. |
+| 배지 활성화 | `badgeName` 파라미터 누락 | `500 Internal Server Error` | `ApiErrorResponse` (`code: INTERNAL_SERVER_ERROR`) | 클라이언트 요청 오류가 `Exception.class` catch-all에 의해 `500`으로 변환됩니다. |
+| 배지 비활성화 | 존재하지 않는 배지 이름으로 요청 | `404 Not Found` | `ApiErrorResponse` (`code: BADGE_NOT_FOUND`) | 공통 에러 응답이 정상 적용되었습니다. |
+| 배지 비활성화 | 빈 배지 이름 전달 (`badgeName=`) | `404 Not Found` | `ApiErrorResponse` (`code: BADGE_NOT_FOUND`) | 빈 입력값을 존재하지 않는 배지로 처리하고 있어 입력값 검증 여부를 추가로 검토할 필요가 있습니다. |
+| 배지 비활성화 | `badgeName` 파라미터 누락 | `500 Internal Server Error` | `ApiErrorResponse` (`code: INTERNAL_SERVER_ERROR`) | 클라이언트 요청 오류가 `Exception.class` catch-all에 의해 `500`으로 변환됩니다. |
+| 회원가입 | 필수 입력값 없이 빈 JSON 객체 `{}` 전송 | `400 Bad Request` | 필드별 검증 메시지 객체 | 상태 코드는 적절하지만 공통 `ApiErrorResponse` 형식과 다릅니다. |
+| 회원가입 | 필수 필드 `name` 누락 | `400 Bad Request` | `{"name":"이름은 필수 사항입니다"}` | 검증 오류는 정상 처리되지만 필드별 메시지 객체 형식을 사용합니다. |
+| 회원가입 | `name`에 빈 문자열 전달 | `400 Bad Request` | `{"name":"이름은 필수 사항입니다"}` | 검증 오류는 정상 처리되지만 공통 `ApiErrorResponse` 형식과 다릅니다. |
+| 회원가입 | Request Body 자체 누락 | `500 Internal Server Error` | `ApiErrorResponse` (`code: INTERNAL_SERVER_ERROR`) | 잘못된 요청이지만 catch-all에 의해 `500`으로 처리됩니다. |
+| 회원가입 | 잘못된 JSON 형식 전송 | `500 Internal Server Error` | `ApiErrorResponse` (`code: INTERNAL_SERVER_ERROR`) | 요청 본문 파싱 오류가 `500`으로 처리되고 있어 `400 Bad Request`로 보완할 필요가 있습니다. |
+| 회원가입 | 이미 존재하는 아이디로 가입 요청 | `400 Bad Request` | `{"message":"Username 'duplicate_test' already exists."}` | 상태 코드는 적절하지만 다른 오류 응답과 구조가 다릅니다. |
+| 회원가입 | 중복 아이디와 함께 필수 입력값 검증 실패 | `400 Bad Request` | 필드별 검증 메시지 객체 | DTO 검증 단계에서 요청이 종료되어 중복 아이디 검사까지 진행되지 않습니다. |
+| 사원 퇴직 | 존재하지 않는 사원 ID로 요청 | `404 Not Found` | 응답 본문 없음 | Controller의 `try-catch`에서 직접 처리되어 공통 에러 응답이 적용되지 않습니다. |
+| 로그인 | 존재하는 아이디에 잘못된 비밀번호 입력 | `401 Unauthorized` | 응답 본문 없음 | 인증 실패는 적절하게 `401`로 처리되지만 공통 에러 응답 형식은 적용되지 않습니다. |
+| 로그인 | 존재하지 않는 아이디 입력 | `401 Unauthorized` | 응답 본문 없음 | 상태 코드는 적절하지만 에러 코드와 메시지가 없습니다. |
+| 로그인 | `password` 누락 | `401 Unauthorized` | 응답 본문 없음 | 로그인 실패와 동일하게 `401`로 처리됩니다. |
+| 로그인 | `username` 누락 | `401 Unauthorized` | 응답 본문 없음 | 로그인 실패와 동일하게 `401`로 처리됩니다. |
+| 로그인 | `username`, `password` 모두 누락 | `401 Unauthorized` | 응답 본문 없음 | 로그인 실패와 동일하게 `401`로 처리됩니다. |
+
+### 확인된 문제
+
+실행 결과, 배지 미존재 오류는 리팩토링을 통해 `404 Not Found`와 `BADGE_NOT_FOUND` 공통 응답으로 정상화된 것을 확인했습니다.
+
+반면 Spring MVC에서 클라이언트 요청 오류로 처리되어야 하는 다음 상황이 `Exception.class` catch-all에 의해 `500 Internal Server Error`로 변경되고 있음을 확인했습니다.
+
+- 배지 활성화·비활성화의 `badgeName` 파라미터 누락
+- 회원가입 Request Body 누락
+- 회원가입 JSON 형식 오류
+
+또한 오류 종류에 따라 응답 형식이 아직 다르게 사용되고 있습니다.
+
+- 배지 업무 예외: `ApiErrorResponse`
+- 입력값 검증 오류: 필드별 검증 메시지 객체
+- 중복 아이디 오류: `message`만 포함한 객체
+- 사원 퇴직 오류: 응답 본문 없음
+- 로그인 인증 실패: 응답 본문 없음
+
+따라서 현재 공통 에러 응답은 배지 활성화·비활성화의 업무 예외에 적용된 상태이며, 모든 MVC 및 Security 오류가 공통 형식으로 통일된 상태는 아닙니다.
+
+### 추가 확인 사항
+
+사원 퇴직 API를 확인하는 과정에서 인증된 사용자가 자신의 사원 ID에 대해 퇴직 요청을 수행할 수 있음을 확인했습니다.
+
+현재 사원 퇴직 API에 별도의 역할 제한이 적용되어 있지 않아 퇴직 처리 기능의 실제 권한 정책을 추가로 확인할 필요가 있습니다.
+
+또한 퇴직 처리는 사원 상태를 변경하지만 이미 발급된 JWT를 즉시 무효화하지 않습니다. 현재 JWT 기반 인증은 `STATELESS` 방식이므로 퇴직 전에 발급된 유효한 토큰에 대한 처리 정책도 추후 확인할 필요가 있습니다.
+
+### 공통 에러 처리 보완
+
+추가 실행 확인 과정에서 `Exception.class` catch-all이 Spring MVC의 일부 요청 오류를
+`500 Internal Server Error`로 변환하는 문제를 확인했습니다.
+
+다음 요청이 클라이언트 오류에 맞는 `400 Bad Request`를 유지하도록 예외 처리를 보완했습니다.
+
+| 발생 조건 | 기존 응답 | 변경 후 응답 |
+|---|---|---|
+| 필수 Request Parameter 누락 | `500 INTERNAL_SERVER_ERROR` | `400 MISSING_REQUEST_PARAMETER` |
+| Request Body 누락 | `500 INTERNAL_SERVER_ERROR` | `400 INVALID_REQUEST_BODY` |
+| 잘못된 JSON 형식 | `500 INTERNAL_SERVER_ERROR` | `400 INVALID_REQUEST_BODY` |
+| `@Valid` 입력값 검증 실패 | 필드별 메시지 객체 | `400 VALIDATION_FAILED` |
+
+입력값 검증 실패는 필드별 오류 정보를 유지하면서 다음과 같은 형식으로 정리했습니다.
+
+```json
+{
+  "status": 400,
+  "code": "VALIDATION_FAILED",
+  "message": "입력값을 확인해 주세요.",
+  "errors": {
+    "username": "아이디는 필수 사항입니다."
+  }
+}
+```
+### 회귀 테스트
+
+수정한 예외 처리가 다시 기존 동작으로 돌아가지 않도록 회귀 테스트를 추가했습니다.
+
+- 필수 `badgeName` 파라미터 누락 → `400 MISSING_REQUEST_PARAMETER`
+- 회원가입 Request Body 누락 → `400 INVALID_REQUEST_BODY`
+- 회원가입 JSON 형식 오류 → `400 INVALID_REQUEST_BODY`
+- 회원가입 입력값 검증 실패 → `400 VALIDATION_FAILED`
+
+이를 통해 클라이언트의 잘못된 요청이 `Exception.class` catch-all에 의해 다시 `500 Internal Server Error`로 처리되지 않는지 확인합니다.
+
+### 테스트 데이터 분리
+
+기존 `data.sql`에는 애플리케이션 초기화에 필요한 데이터와
+배지 API 확인을 위한 테스트 데이터가 함께 포함되어 있었습니다.
+
+```sql
+'X세대',
+'배지 API 정상 응답 확인을 위한 테스트 배지'
+```
+
+테스트 목적의 데이터가 기본 초기 데이터에 포함되지 않도록 역할을 분리했습니다.
+
+- `data.sql`
+  - 애플리케이션 실행에 필요한 공통 초기 데이터만 관리
+- `data-local.sql`
+  - Postman 등 로컬 API 확인에 필요한 샘플 데이터 관리
+
+따라서 기존 `data.sql`의 `X세대` 테스트 배지는 제거하고
+로컬 API 확인용 데이터는 `data-local.sql`로 이동했습니다.
 
 </details>
 

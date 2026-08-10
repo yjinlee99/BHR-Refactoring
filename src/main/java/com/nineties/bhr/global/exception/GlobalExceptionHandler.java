@@ -5,7 +5,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -36,8 +38,43 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingRequestParameter(
+            MissingServletRequestParameterException ex,
+            HttpServletRequest request
+    ) {
+        ErrorCode errorCode = ErrorCode.MISSING_REQUEST_PARAMETER;
+
+        ApiErrorResponse response = ApiErrorResponse.of(
+                errorCode,
+                errorCode.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(response);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ) {
+        ErrorCode errorCode = ErrorCode.INVALID_REQUEST_BODY;
+
+        ApiErrorResponse response = ApiErrorResponse.of(
+                errorCode,
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(response);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(
+    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
             MethodArgumentNotValidException ex
     ) {
         Map<String, String> errors = new HashMap<>();
@@ -51,9 +88,14 @@ public class GlobalExceptionHandler {
                         )
                 );
 
+        ErrorCode errorCode = ErrorCode.VALIDATION_FAILED;
+
+        ValidationErrorResponse response =
+                ValidationErrorResponse.of(errorCode, errors);
+
         return ResponseEntity
-                .badRequest()
-                .body(errors);
+                .status(errorCode.getStatus())
+                .body(response);
     }
 
     @ExceptionHandler(Exception.class)

@@ -13,6 +13,24 @@ public enum ErrorCode {
             "배지를 찾을 수 없습니다."
     ),
 
+    MISSING_REQUEST_PARAMETER(
+            HttpStatus.BAD_REQUEST,
+            "MISSING_REQUEST_PARAMETER",
+            "필수 요청 파라미터가 누락되었습니다."
+    ),
+
+    INVALID_REQUEST_BODY(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_REQUEST_BODY",
+            "요청 본문을 읽을 수 없습니다."
+    ),
+
+    VALIDATION_FAILED(
+            HttpStatus.BAD_REQUEST,
+            "VALIDATION_FAILED",
+            "입력값을 확인해 주세요."
+    ),
+
     INTERNAL_SERVER_ERROR(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "INTERNAL_SERVER_ERROR",

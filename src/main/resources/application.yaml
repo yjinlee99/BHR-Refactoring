@@ -3,7 +3,9 @@ spring:
     secret: ${JWT_SECRET}
   sql:
     init:
-      data-locations: classpath*:data.sql
+      data-locations:
+        - classpath:data.sql
+        - classpath:data-local.sql
       platform: h2
       encoding: UTF-8
       mode: always

@@ -226,15 +226,62 @@ Controller부터 실제 Service와 Repository, 전역 예외 처리까지 확인
 
 또한 퇴직 처리는 사원 상태를 변경하지만 이미 발급된 JWT를 즉시 무효화하지 않습니다. 현재 JWT 기반 인증은 `STATELESS` 방식이므로 퇴직 전에 발급된 유효한 토큰에 대한 처리 정책도 추후 확인할 필요가 있습니다.
 
-### 다음 보완
+### 공통 에러 처리 보완
 
-- 파라미터 누락 요청이 `400 Bad Request`를 유지하도록 예외 처리 보완
-- Request Body 누락 및 JSON 파싱 오류가 `400 Bad Request`를 유지하도록 예외 처리 보완
-- 위 요청에 대한 회귀 테스트 추가
-- README의 입력값 검증 오류 설명을 실제 구현 범위에 맞게 수정
-- 테스트용 데이터를 `main data.sql`과 분리
-- 사원 퇴직 API의 역할별 접근 권한 확인
-- 퇴직 사용자와 기존 JWT 처리 정책 확인
+추가 실행 확인 과정에서 `Exception.class` catch-all이 Spring MVC의 일부 요청 오류를
+`500 Internal Server Error`로 변환하는 문제를 확인했습니다.
+
+다음 요청이 클라이언트 오류에 맞는 `400 Bad Request`를 유지하도록 예외 처리를 보완했습니다.
+
+| 발생 조건 | 기존 응답 | 변경 후 응답 |
+|---|---|---|
+| 필수 Request Parameter 누락 | `500 INTERNAL_SERVER_ERROR` | `400 MISSING_REQUEST_PARAMETER` |
+| Request Body 누락 | `500 INTERNAL_SERVER_ERROR` | `400 INVALID_REQUEST_BODY` |
+| 잘못된 JSON 형식 | `500 INTERNAL_SERVER_ERROR` | `400 INVALID_REQUEST_BODY` |
+| `@Valid` 입력값 검증 실패 | 필드별 메시지 객체 | `400 VALIDATION_FAILED` |
+
+입력값 검증 실패는 필드별 오류 정보를 유지하면서 다음과 같은 형식으로 정리했습니다.
+
+```json
+{
+  "status": 400,
+  "code": "VALIDATION_FAILED",
+  "message": "입력값을 확인해 주세요.",
+  "errors": {
+    "username": "아이디는 필수 사항입니다."
+  }
+}
+```
+### 회귀 테스트
+
+수정한 예외 처리가 다시 기존 동작으로 돌아가지 않도록 회귀 테스트를 추가했습니다.
+
+- 필수 `badgeName` 파라미터 누락 → `400 MISSING_REQUEST_PARAMETER`
+- 회원가입 Request Body 누락 → `400 INVALID_REQUEST_BODY`
+- 회원가입 JSON 형식 오류 → `400 INVALID_REQUEST_BODY`
+- 회원가입 입력값 검증 실패 → `400 VALIDATION_FAILED`
+
+이를 통해 클라이언트의 잘못된 요청이 `Exception.class` catch-all에 의해 다시 `500 Internal Server Error`로 처리되지 않는지 확인합니다.
+
+### 테스트 데이터 분리
+
+기존 `data.sql`에는 애플리케이션 초기화에 필요한 데이터와
+배지 API 확인을 위한 테스트 데이터가 함께 포함되어 있었습니다.
+
+```sql
+'X세대',
+'배지 API 정상 응답 확인을 위한 테스트 배지'
+```
+
+테스트 목적의 데이터가 기본 초기 데이터에 포함되지 않도록 역할을 분리했습니다.
+
+- `data.sql`
+  - 애플리케이션 실행에 필요한 공통 초기 데이터만 관리
+- `data-local.sql`
+  - Postman 등 로컬 API 확인에 필요한 샘플 데이터 관리
+
+따라서 기존 `data.sql`의 `X세대` 테스트 배지는 제거하고
+로컬 API 확인용 데이터는 `data-local.sql`로 이동했습니다.
 
 </details>
 

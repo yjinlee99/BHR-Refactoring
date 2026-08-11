@@ -516,7 +516,7 @@ Postman을 이용하여 다음 시나리오를 확인하였다.
 
 
 <details>
-<summary><b>2026-08-12 | Spring Security 인증 흐름 분석</b></summary>
+<summary><b>2026-08-12 —  Spring Security 인증 흐름 분석</b></summary>
 
 ### 인증 흐름 정리
 

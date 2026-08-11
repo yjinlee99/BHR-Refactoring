@@ -3,7 +3,9 @@ package com.nineties.bhr.global.security;
 import com.nineties.bhr.global.security.jwt.JWTFilter;
 import com.nineties.bhr.global.security.jwt.JWTUtil;
 import com.nineties.bhr.global.security.jwt.LoginFilter;
+import com.nineties.bhr.login.service.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,11 +28,14 @@ public class SecurityConfig {
     //AuthenticationManager가 인자로 받을 AuthenticationConfiguraion 객체 생성자 주입
     private final AuthenticationConfiguration authenticationConfiguration;
     private final JWTUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
-    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JWTUtil jwtUtil) {
+    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JWTUtil jwtUtil,
+                          RefreshTokenService refreshTokenService) {
 
         this.authenticationConfiguration = authenticationConfiguration;
         this.jwtUtil = jwtUtil;
+        this.refreshTokenService = refreshTokenService;
     }
 
     //AuthenticationManager Bean 등록
@@ -62,7 +67,12 @@ public class SecurityConfig {
                                 configuration.setAllowedHeaders(Collections.singletonList("*"));
                                 configuration.setMaxAge(3600L);
 
-                                configuration.setExposedHeaders(Collections.singletonList("Authorization"));
+                                configuration.setExposedHeaders(
+                                        List.of(
+                                                "Authorization",
+                                                "Refresh-Token"
+                                        )
+                                );
 
                                 return configuration;
                             }
@@ -84,7 +94,8 @@ public class SecurityConfig {
                                 "/api/login/join", "/employees/{id}", "/attendance/startWork",
                                 "/attendance/endWork","attendance/record/{id}",
                                 "myAnnual/{annualYear}/{empId}", "attendance/monthlySummary/{employeeId}","/api/admin/dashboard/metrics",
-                                "/emp/dashboard/{empId}", "/uploads/**", "/api/admin/badge/*","/static/**","/badge/**", "/emp/badge").permitAll()
+                                "/emp/dashboard/{empId}", "/uploads/**", "/api/admin/badge/*","/static/**","/badge/**", "/emp/badge",
+                                "/api/auth/refresh", "/api/auth/logout").permitAll()
 
                         .requestMatchers("/admin").hasRole("MANAGER")
                         .requestMatchers("/admin").hasRole("HRMANAGER")
@@ -93,7 +104,14 @@ public class SecurityConfig {
                 .addFilterAt(new JWTFilter(jwtUtil), LoginFilter.class);
 
         http
-                .addFilterAt(new LoginFilter(authenticationManager(authenticationConfiguration), jwtUtil), UsernamePasswordAuthenticationFilter.class);
+                .addFilterAt(
+                        new LoginFilter(
+                                authenticationManager(authenticationConfiguration),
+                                jwtUtil,
+                                refreshTokenService
+                        ),
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         //세션 설정
         http

@@ -31,6 +31,24 @@ public enum ErrorCode {
             "입력값을 확인해 주세요."
     ),
 
+    REFRESH_TOKEN_EXPIRED(
+            HttpStatus.UNAUTHORIZED,
+            "REFRESH_TOKEN_EXPIRED",
+            "Refresh Token이 만료되었습니다."
+    ),
+
+    INVALID_REFRESH_TOKEN(
+            HttpStatus.UNAUTHORIZED,
+            "INVALID_REFRESH_TOKEN",
+            "유효하지 않은 Refresh Token입니다."
+    ),
+
+    REFRESH_TOKEN_NOT_FOUND(
+            HttpStatus.UNAUTHORIZED,
+            "REFRESH_TOKEN_NOT_FOUND",
+            "저장된 Refresh Token을 찾을 수 없습니다."
+    ),
+
     INTERNAL_SERVER_ERROR(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "INTERNAL_SERVER_ERROR",

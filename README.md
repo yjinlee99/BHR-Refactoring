@@ -285,3 +285,232 @@ Controller부터 실제 Service와 Repository, 전역 예외 처리까지 확인
 
 </details>
 
+
+<details>
+<summary><b>2026-08-11 — JWT Refresh Token 및 Logout 기능 추가</b></summary>
+
+### 작업 목적
+
+기존 인증 구조는 로그인 성공 시 하나의 JWT를 발급하고 해당 토큰을 10시간 동안 사용하는 방식이었다.
+
+이 구조에서는 Access Token이 만료되면 다시 로그인해야 하며, 서버에서 로그인 상태를 종료하거나 토큰을 재발급할 수 있는 방법이 없었다.
+
+이를 개선하기 위해 Access Token과 Refresh Token을 분리하고, 토큰 재발급 및 로그아웃 기능을 추가하였다.
+
+---
+
+### 기존 구조
+
+```text
+로그인
+  ↓
+JWT 발급 (10시간)
+  ↓
+Authorization 헤더로 전달
+  ↓
+JWTFilter에서 검증
+  ↓
+API 접근
+```
+
+#### 기존 구조의 문제점
+
+- Access Token과 Refresh Token의 구분이 없음
+- JWT 유효 시간이 10시간으로 길게 설정됨
+- Access Token 만료 시 재로그인 필요
+- 서버에서 로그아웃 상태를 관리할 방법이 없음
+- Authorization 헤더의 JWT 원문이 서버 로그에 출력됨
+
+---
+
+### 개선 내용
+
+Access Token과 Refresh Token을 분리하였다.
+
+| 구분 | 유효 시간 | 용도 |
+| --- | --- | --- |
+| Access Token | 30분 | 일반 API 인증 |
+| Refresh Token | 7일 | Access Token 재발급 |
+
+Refresh Token은 DB에 저장하여 서버에서 상태를 관리하도록 구성하였다.
+
+---
+
+### 로그인
+
+로그인 성공 시 Access Token과 Refresh Token을 함께 발급한다.
+
+```text
+로그인 요청
+  ↓
+LoginFilter
+  ↓
+사용자 인증
+  ↓
+Access Token 생성
+Refresh Token 생성
+  ↓
+Refresh Token DB 저장
+  ↓
+응답 헤더로 전달
+```
+
+응답 헤더:
+
+```http
+Authorization: Bearer <Access Token>
+Refresh-Token: Bearer <Refresh Token>
+```
+
+기존 `Authorization` 헤더를 그대로 사용하여 기존 Access Token 인증 방식은 유지하였다.
+
+---
+
+### Access Token / Refresh Token 구분
+
+JWT 내부에 `category` 값을 추가하여 토큰의 종류를 구분하였다.
+
+```text
+Access Token
+category = access
+
+Refresh Token
+category = refresh
+```
+
+일반 API 요청에서는 `category`가 `access`인 토큰만 인증에 사용할 수 있도록 `JWTFilter`를 수정하였다.
+
+따라서 Refresh Token을 `Authorization` 헤더에 넣어 일반 API를 요청할 경우 인증되지 않는다.
+
+---
+
+### Access Token 재발급
+
+Access Token이 만료된 경우 Refresh Token을 이용하여 새로운 토큰을 발급받을 수 있도록 API를 추가하였다.
+
+```http
+POST /api/auth/refresh
+```
+
+요청 헤더:
+
+```http
+Refresh-Token: Bearer <Refresh Token>
+```
+
+재발급 흐름:
+
+```text
+Refresh Token 전달
+  ↓
+JWT 검증
+  ↓
+Refresh Token 여부 확인
+  ↓
+DB에 저장된 토큰인지 확인
+  ↓
+새 Access Token 생성
+  ↓
+새 Refresh Token 생성
+  ↓
+기존 Refresh Token 교체
+  ↓
+새 Access / Refresh Token 반환
+```
+
+응답 헤더:
+
+```http
+Authorization: Bearer <New Access Token>
+Refresh-Token: Bearer <New Refresh Token>
+```
+
+---
+
+### Refresh Token Rotation
+
+Refresh Token 재사용을 방지하기 위해 Rotation 방식을 적용하였다.
+
+```text
+Refresh Token A
+      ↓
+POST /api/auth/refresh
+      ↓
+Access Token B 생성
+Refresh Token B 생성
+      ↓
+DB
+Refresh A → Refresh B
+```
+
+한 번 사용한 Refresh Token은 새로운 Refresh Token으로 교체된다.
+
+따라서 이전 Refresh Token을 다시 사용하면 DB에서 조회되지 않아 재발급에 실패한다.
+
+---
+
+### Logout
+
+로그아웃 API를 추가하였다.
+
+```http
+POST /api/auth/logout
+```
+
+요청 헤더:
+
+```http
+Refresh-Token: Bearer <Refresh Token>
+```
+
+로그아웃 흐름:
+
+```text
+로그아웃 요청
+  ↓
+Refresh Token 전달
+  ↓
+DB에 저장된 Refresh Token 삭제
+  ↓
+204 No Content
+```
+
+로그아웃 후 삭제된 Refresh Token으로 다시 `/api/auth/refresh`를 요청하면 Access Token을 재발급받을 수 없다.
+
+---
+
+### 보안 개선
+
+기존 `JWTFilter`에서는 Authorization 헤더 전체를 콘솔에 출력하고 있었다.
+
+```java
+System.out.println(authorization);
+```
+
+Authorization 헤더에는 실제 JWT가 포함되어 있기 때문에 서버 로그를 통해 토큰이 노출될 가능성이 있다.
+
+따라서 JWT 원문을 출력하는 로그를 제거하였다.
+
+또한 Refresh Token을 일반 API 인증 용도로 사용할 수 없도록 Access Token과 Refresh Token의 역할을 분리하였다.
+
+---
+
+### 테스트 결과
+
+Postman을 이용하여 다음 시나리오를 확인하였다.
+
+| 테스트 | 결과 |
+| --- | --- |
+| 로그인 | Access Token / Refresh Token 발급 성공 |
+| Access Token으로 일반 API 호출 | 정상 처리 |
+| Refresh Token으로 일반 API 호출 | `401 Unauthorized` |
+| Refresh Token으로 토큰 재발급 | `200 OK` |
+| 새로운 Access / Refresh Token 발급 | 정상 처리 |
+| 사용한 Refresh Token 재사용 | `401 Unauthorized` |
+| 최신 Refresh Token으로 재발급 | 정상 처리 |
+| 로그아웃 | `204 No Content` |
+| 로그아웃한 Refresh Token으로 재발급 | `401 Unauthorized` |
+
+
+</details>
+

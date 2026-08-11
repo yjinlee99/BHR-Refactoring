@@ -1,6 +1,7 @@
 package com.nineties.bhr.global.security.jwt;
 
 import com.nineties.bhr.employee.dto.CustomUserDetails;
+import com.nineties.bhr.login.service.RefreshTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,21 +19,23 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
 
     private final AuthenticationManager authenticationManager;
     private final JWTUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
-    public LoginFilter(AuthenticationManager authenticationManager, JWTUtil jwtUtil) {
-
+    public LoginFilter(
+            AuthenticationManager authenticationManager,
+            JWTUtil jwtUtil,
+            RefreshTokenService refreshTokenService
+    ) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.refreshTokenService = refreshTokenService;
     }
-
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {
 
         //클라이언트 요청에서 username, password 추출
         String username = obtainUsername(request);
         String password = obtainPassword(request);
-
-        System.out.println(username);
 
         //스프링 시큐리티에서 username과 password를 검증하기 위해서는 token에 담아야 함
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(username, password, null);
@@ -45,7 +48,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authentication) {
 
-        //UserDetailsS
+        //UserDetails
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
 
         String username = customUserDetails.getUsername();
@@ -56,8 +59,39 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         GrantedAuthority auth = iterator.next();
 
         String role = auth.getAuthority();
-        String token = jwtUtil.createJwt(username, role, 60*60*10L* 1000, empId);
-        response.addHeader("Authorization", "Bearer " + token);
+
+        String accessToken =
+                jwtUtil.createAccessToken(
+                        username,
+                        role,
+                        empId
+                );
+
+        String refreshToken =
+                jwtUtil.createRefreshToken(
+                        username,
+                        role,
+                        empId
+                );
+
+// Refresh Token DB 저장
+        refreshTokenService.saveOrUpdate(
+                empId,
+                refreshToken
+        );
+
+// Access Token
+        response.addHeader(
+                "Authorization",
+                "Bearer " + accessToken
+        );
+
+// Refresh Token
+        response.addHeader(
+                "Refresh-Token",
+                "Bearer " + refreshToken
+        );
+
     }
 
     //로그인 실패시 실행하는 메소드

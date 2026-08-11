@@ -514,3 +514,715 @@ Postman을 이용하여 다음 시나리오를 확인하였다.
 
 </details>
 
+
+<details>
+<summary><b>2026-08-12 | Spring Security 인증 흐름 분석</b></summary>
+
+### 인증 흐름 정리
+
+JWT 기반 인증 과정에서 요청이 Spring Security Filter Chain과 MVC 영역을 어떻게 통과하는지 확인하고, 정상 인증과 인증 실패 시의 처리 흐름을 정리했다.
+
+현재 프로젝트는 `SecurityConfig`에서 세션 정책을 `STATELESS`로 설정하고 있다.
+
+```java
+.sessionManagement(session ->
+        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+)
+```
+
+따라서 서버가 세션에 로그인 상태를 저장하지 않으며, 보호된 API 요청마다 `JWTFilter`가 Access Token을 검증하여 인증 정보를 생성한다.
+
+
+---
+
+### 1. 로그인
+
+로그인 요청은 `LoginFilter`에서 처리한다.
+
+```text
+Client
+  ↓ POST /login
+LoginFilter
+  ↓
+사용자 인증
+  ↓
+JWTUtil
+  ├─ Access Token 발급
+  └─ Refresh Token 발급
+       ↓
+RefreshTokenService
+       ↓
+RefreshTokenRepository
+       ↓
+Refresh Token DB 저장
+```
+
+인증에 성공하면 다음 두 토큰을 응답 헤더로 반환한다.
+
+- **Access Token**: 30분
+- **Refresh Token**: 7일
+
+Refresh Token은 `empId`와 함께 DB에 저장하며, 같은 사용자가 다시 로그인하면 기존 Refresh Token을 새로운 토큰으로 갱신한다.
+
+---
+
+### 2. 유효한 Access Token 요청
+
+보호된 API 요청은 `JWTFilter`를 통과한다.
+
+```text
+Client
+  ↓ Authorization: Bearer <Access Token>
+JWTFilter
+  ↓
+JWTUtil을 통한 JWT 검증
+  ↓
+username / role / empId 추출
+  ↓
+Authentication 생성
+  ↓
+SecurityContextHolder에 등록
+  ↓
+Controller
+```
+
+`SecurityContextHolder`에 `Authentication`을 등록함으로써 Spring Security가 현재 요청의 인증 사용자와 권한을 확인할 수 있다.
+
+현재 프로젝트는 `STATELESS` 방식이므로 이 인증 정보가 서버 세션에 계속 저장되는 것이 아니라, **각 요청마다 Access Token을 검증하여 인증 정보를 다시 설정한다.**
+
+```text
+요청 1
+Access Token → JWTFilter → SecurityContext 설정 → 요청 처리
+
+요청 2
+Access Token → JWTFilter → SecurityContext 다시 설정 → 요청 처리
+```
+
+---
+
+### 3. 만료되거나 변조된 Access Token
+
+`JWTFilter`에서 JWT를 파싱하는 과정에서 토큰의 서명과 만료 시간을 검증한다.
+
+#### 정상 Token
+
+```text
+JWTFilter
+  ↓
+JWT 검증 성공
+  ↓
+Authentication 생성
+  ↓
+SecurityContext 등록
+  ↓
+Controller 진입
+```
+
+#### 만료된 Token
+
+```text
+JWTFilter
+  ↓
+JWTUtil
+  ↓
+ExpiredJwtException
+  ↓
+401 Unauthorized
+```
+
+#### 변조되거나 잘못된 Token
+
+```text
+JWTFilter
+  ↓
+JWTUtil
+  ↓
+JwtException
+  ↓
+401 Unauthorized
+```
+
+만료되거나 변조된 Access Token은 인증 정보를 생성할 수 없으므로 Controller까지 도달하지 않는다.
+
+---
+
+### 4. 401 Unauthorized / 403 Forbidden
+
+두 상태 코드는 발생 시점과 의미가 다르다.
+
+| 상태 코드 | 의미 | 예시 |
+| --- | --- | --- |
+| `401 Unauthorized` | 인증 실패 | 토큰 만료, JWT 변조, 잘못된 토큰 |
+| `403 Forbidden` | 인증은 성공했지만 권한 부족 | 일반 사용자가 관리자 전용 API 접근 |
+
+즉,
+
+```text
+401
+"이 사용자가 누구인지 인증할 수 없음"
+
+403
+"사용자가 누구인지는 알지만 해당 기능을 사용할 권한이 없음"
+```
+
+으로 구분할 수 있다.
+
+---
+
+### 5. Security 영역과 MVC 영역의 오류 처리 경계
+
+Spring Security Filter는 Controller보다 먼저 실행되므로, Filter 단계에서 발생한 인증 오류와 Controller 이후의 MVC 예외는 처리 영역이 다르다.
+
+```text
+┌────────────── Security 영역 ──────────────┐
+
+Client
+  ↓
+Security Filter Chain
+  ↓
+LoginFilter / JWTFilter
+  │
+  ├─ 인증 실패 → 401
+  └─ 권한 부족 → 403
+
+※ Controller 진입 이전
+※ GlobalExceptionHandler 처리 범위 밖
+
+──────────────── 경계 ────────────────
+
+┌──────────────── MVC 영역 ────────────────┐
+
+Controller
+  ↓
+Service
+  ↓
+BusinessException
+  ↓
+GlobalExceptionHandler
+  ↓
+ApiErrorResponse
+```
+
+현재 `GlobalExceptionHandler`는 Controller 이후 MVC 영역에서 발생한 `BusinessException` 등을 공통 응답 형식으로 처리한다.
+
+반면 `JWTFilter`, `LoginFilter` 등 **Security Filter 단계에서 발생한 인증·인가 오류는 MVC 영역에 진입하기 전에 발생하기 때문에 `GlobalExceptionHandler`가 직접 처리할 수 없다.**
+
+따라서 현재 Security 영역의 오류 응답과 MVC 영역의 공통 오류 응답에는 처리 방식의 차이가 있으며, 추후 Security 인증·인가 오류까지 공통 응답 구조로 통일할 수 있다.
+
+---
+
+### 6. Access Token 재발급
+
+Access Token이 만료된 경우 Refresh Token을 이용하여 새로운 토큰을 발급받는다.
+
+`/api/auth/refresh`는 `JWTFilter.shouldNotFilter()`에 의해 일반 Access Token 인증 필터를 건너뛴다.
+
+```text
+POST /api/auth/refresh
+Refresh-Token: Bearer <Refresh Token>
+  ↓
+JWTFilter.shouldNotFilter()
+  ↓
+JWTFilter 건너뜀
+  ↓
+AuthController
+  ↓
+AuthService
+  ↓
+JWTUtil
+  ├─ Refresh Token 유효성 검증
+  └─ category == "refresh" 확인
+  ↓
+RefreshTokenService
+  ↓
+RefreshTokenRepository
+  ↓
+기존 Refresh Token 확인
+  ↓
+새 Access Token + Refresh Token 발급
+  ↓
+기존 Refresh Token을 새 Refresh Token으로 갱신
+```
+
+Refresh Token Rotation을 적용하여 한 번 재발급에 사용된 이전 Refresh Token은 다시 사용할 수 없도록 했다.
+
+---
+
+### 7. 로그아웃
+
+로그아웃 시 서버에 저장된 Refresh Token을 삭제한다.
+
+```text
+POST /api/auth/logout
+Refresh-Token: Bearer <Refresh Token>
+  ↓
+AuthController
+  ↓
+AuthService
+  ↓
+RefreshTokenService
+  ↓
+RefreshTokenRepository
+  ↓
+Refresh Token 삭제
+  ↓
+204 No Content
+```
+
+Refresh Token이 삭제된 이후에는 해당 토큰으로 Access Token을 다시 발급받을 수 없다.
+
+단, 이미 발급된 Access Token은 별도의 Blacklist를 사용하지 않기 때문에 **만료 시간까지는 유효하다.**
+
+---
+
+### 정리
+
+현재 인증 구조는 다음과 같다.
+
+- `SecurityConfig`에서 `SessionCreationPolicy.STATELESS` 적용
+- 로그인은 `LoginFilter`에서 처리
+- 일반 요청은 `JWTFilter`에서 Access Token 검증
+- 인증 성공 시 `Authentication`을 `SecurityContextHolder`에 등록
+- Access Token 만료 또는 변조 시 `401 Unauthorized`
+- 인증은 되었지만 권한이 부족한 경우 `403 Forbidden`
+- MVC 영역의 업무 예외는 `GlobalExceptionHandler`에서 공통 처리
+- Security Filter 영역의 인증·인가 오류는 MVC 예외 처리 영역과 분리되어 있음
+- Refresh Token을 이용한 Access Token 재발급 지원
+- Refresh Token Rotation 적용
+- 로그아웃 시 DB의 Refresh Token 삭제
+
+
+### 인가 정책 분석
+
+`SecurityConfig`의 접근 권한 설정을 확인한 결과, 현재 여러 API가 `permitAll()`로 설정되어 있어 인증 없이 접근 가능한 상태이다.
+
+그러나 실제 서비스 흐름을 기준으로 보면 사원 정보, 출퇴근, 연차, 대시보드, 배지 등은 로그인 이후 사용하는 기능으로, 모두 공개 API로 두는 것은 적절하지 않다.
+
+즉, 현재 인가 설정은 **공개 API와 인증이 필요한 API가 충분히 구분되지 않은 상태**로 판단했다.
+
+#### 현재 확인된 문제
+
+현재 `SecurityConfig`에는 다음과 같은 성격의 API들이 `permitAll()` 범위에 포함되어 있다.
+
+- 사원 정보 조회
+- 출퇴근 관련 기능
+- 연차 관련 기능
+- 개인 및 관리자 대시보드
+- 배지 관련 기능
+
+이 기능들은 로그인한 사용자가 이용하는 서비스 기능이므로, 최소한 인증 여부를 확인하도록 설정하는 것이 적절하다.
+
+반면 다음과 같이 인증 전에 접근해야 하는 API는 공개 접근이 필요하다.
+
+```text
+/login
+/api/join
+/api/auth/refresh
+/api/auth/logout
+정적 리소스
+```
+
+따라서 인가 정책은 다음과 같이 구분할 필요가 있다.
+
+```text
+[공개 API]
+로그인 / 회원가입 / 토큰 재발급 등
+        ↓
+permitAll()
+
+[로그인 필요 API]
+사원 정보 / 출퇴근 / 연차 / 개인 대시보드 / 배지 조회 등
+        ↓
+authenticated()
+
+[역할 제한 API]
+관리자 기능
+        ↓
+MANAGER / HRMANAGER 등 역할 기반 접근 제어
+```
+
+---
+
+#### `/api/admin/badge/*` 권한 정책
+
+`/api/admin/badge/*` 역시 현재 `permitAll()`로 설정되어 있다.
+
+경로명과 기능상 관리자용 API로 보이지만, 기존 코드와 확인 가능한 자료만으로는 해당 API를 `MANAGER`, `HRMANAGER` 중 어떤 역할에 허용하려고 했는지 명확하게 확인하지 못했다.
+
+따라서 이번 분석에서는 임의로 역할을 추측하여 변경하지 않고 다음 사실만 기록한다.
+
+- 현재 `/api/admin/badge/*`는 `permitAll()` 상태이다.
+- 관리자 기능으로 보이지만 정확한 허용 역할은 확인하지 못했다.
+- 역할 정책이 확인된 이후 별도의 인가 설정 개선이 필요하다.
+
+---
+
+#### 관리자 역할 설정 확인
+
+현재 관리자 관련 경로에는 동일한 경로에 대해 여러 역할 조건이 개별적으로 선언된 부분이 있다.
+
+역할별 접근 정책을 다시 정리할 때에는 공개 여부뿐만 아니라 다음 사항을 함께 확인해야 한다.
+
+```text
+1. 인증만 하면 접근 가능한 API인지
+2. MANAGER만 접근 가능한 API인지
+3. HRMANAGER만 접근 가능한 API인지
+4. MANAGER와 HRMANAGER 모두 접근 가능한 API인지
+```
+
+기존 요구사항이 명확하지 않은 부분은 임의로 변경하지 않고, 역할 정책을 확인한 뒤 `hasRole`, `hasAnyRole` 등을 사용하여 재설계할 예정이다.
+
+---
+
+### 현재 판단
+
+현재 Security 설정의 문제는 특정 API 하나가 잘못 설정된 것이 아니라, **전체적으로 공개 API와 인증 필요 API, 역할 제한 API의 경계가 명확하지 않다는 점**이다.
+
+따라서 이번 단계에서는 기존 인가 정책을 임의로 대규모 수정하지 않고 문제를 분석·기록하는 데 집중했다.
+
+추후 인가 정책 리팩토링 시 다음 순서로 개선할 예정이다.
+
+```text
+1. permitAll이 필요한 공개 API 식별
+2. 일반 로그인 사용자의 접근 API를 authenticated()로 분리
+3. 관리자 기능의 실제 역할 정책 확인
+4. MANAGER / HRMANAGER 권한별 접근 범위 설정
+5. 인증 실패(401)와 인가 실패(403) 응답 구조 통일
+```
+
+### 프로젝트 구현 및 개선 범위
+
+본 프로젝트는 2024년 팀 프로젝트로 개발한 인사관리 시스템을 기반으로, 2026년에 기존 코드를 다시 분석하고 개인적으로 리팩토링을 진행한 프로젝트이다.
+
+기존 팀 프로젝트의 구현 내용과 현재 개인적으로 개선한 내용을 혼동하지 않도록 작업 범위를 구분하여 기록한다.
+
+#### 2024년 팀 프로젝트
+
+Spring Boot 기반 인사관리 시스템을 팀 단위로 설계·구현했으며, 기능별로 역할을 분담하여 개발 후 하나의 서비스로 통합했다.
+
+#### 2024년 직접 구현 및 기여 범위
+
+기존 Git 커밋 및 PR 이력을 기준으로 다음 작업에 직접 참여한 것을 확인했다.
+
+- JWT 기반 로그인 및 사용자 인증 기능 구현
+- 신규 직원 생성 기능 구현
+- 직원 목록 및 상세 정보 조회 기능 구현
+- 직원 검색·필터링 기능 구현
+- 디지털 배지 관리자 API 및 Service 구현
+- 관리자 대시보드 구현
+- 근태 현황 및 근태 목록 조회 기능 구현
+- 출근·퇴근 관련 로직 구현 및 수정
+- `Specification`을 활용한 근태 동적 조회 구현
+- 근태 상태 관리 및 스케줄링 기능 구현
+- 프로필·인사카드 데이터 및 배지 연동
+- 임직원 Entity 및 DB 구조 설계·수정 참여
+- 프로젝트 실행 방법 및 환경변수 설정 문서화
+
+#### 2026년 개인 리팩토링 및 개선 범위
+
+기존 프로젝트를 다시 실행하고 인증·예외 처리 구조를 분석하면서 다음 내용을 개인적으로 개선했다.
+
+- 프로젝트 패키지 및 공통 코드 구조 정리
+- 로컬 실행 환경 정리 및 H2 기반 실행 환경 구성
+- 공통 API 오류 응답 구조 설계
+- `BusinessException`, `ErrorCode`, `GlobalExceptionHandler` 기반 예외 처리 개선
+- 기존 JWT 인증 구조 분석
+- 기존 단일 장기 JWT 구조를 Access Token / Refresh Token 구조로 개선
+- Access Token 30분, Refresh Token 7일로 역할과 만료 시간 분리
+- Refresh Token DB 저장 방식 도입
+- Refresh Token Rotation 적용
+- Logout 시 Refresh Token 폐기 기능 추가
+- JWT 원문 로그 제거
+
+---
+
+### 인증 흐름 설명
+
+이 프로젝트는 Spring Security와 JWT를 사용한 `STATELESS` 인증 방식을 사용합니다.
+
+로그인 요청이 들어오면 `LoginFilter`에서 사용자 정보를 인증하고, 인증에 성공하면 `JWTUtil`을 통해 Access Token과 Refresh Token을 발급합니다. Access Token은 일반 API 인증에 사용하고, Refresh Token은 DB에 저장해 Access Token 재발급과 로그아웃에 사용합니다.
+
+이후 일반 API 요청에서는 `JWTFilter`가 `Authorization` 헤더의 Access Token을 검증합니다. 토큰이 유효하면 사용자 정보와 권한을 기반으로 `Authentication` 객체를 생성해 `SecurityContextHolder`에 등록하고, 이후 Controller로 요청이 전달됩니다.
+
+세션은 `SessionCreationPolicy.STATELESS`로 설정되어 있기 때문에 인증 정보를 서버 세션에 저장하지 않고, 보호된 API 요청마다 JWT를 다시 검증해 인증 정보를 구성합니다.
+
+Access Token이 만료되거나 변조된 경우에는 `JWTFilter` 단계에서 인증에 실패해 `401 Unauthorized`가 발생하며 Controller까지 도달하지 않습니다. 반면 인증은 정상적으로 완료됐지만 해당 API에 필요한 권한이 없는 경우에는 `403 Forbidden`이 발생합니다.
+
+또한 `JWTFilter`, `LoginFilter`와 같은 Security Filter 영역에서 발생하는 인증·인가 오류는 Controller 이전에 발생하기 때문에, MVC 영역의 `GlobalExceptionHandler`가 처리하는 `BusinessException`과는 처리 영역이 분리되어 있습니다.
+
+현재는 이 인증 흐름과 오류 처리 경계를 분석했으며, 이후에는 Security 영역의 `401`, `403` 오류 응답도 MVC 영역과 동일한 공통 오류 응답 구조로 개선할 예정입니다.
+
+---
+
+### 핵심 데이터 관계 및 복합키 분석
+
+#### 핵심 데이터 관계
+
+현재 주요 엔티티의 관계는 다음과 같다.
+
+```text
+Dept 1 ── N Employees
+Dept 1 ── 1 leader(Employees)
+
+Employees 1 ── N Attendance
+Employees 1 ── N Annual
+Employees 1 ── N AnnualList
+Employees 1 ── N EmpBadge
+
+BadgeMaster 1 ── N EmpBadge
+
+Employees N ── M BadgeMaster
+└─ EmpBadge가 두 엔티티를 연결
+```
+
+`Dept`에는 여러 `Employees`가 소속될 수 있으며, 이와 별도로 한 명의 `Employees`를 부서장(`leader`)으로 참조한다.
+
+`Employees`는 근태 기록인 `Attendance`, 연도별 연차 집계인 `Annual`, 실제 연차 사용 내역인 `AnnualList`, 배지 부여 기록인 `EmpBadge`를 각각 여러 건 가질 수 있다.
+
+---
+
+#### `Dept.leader`
+
+`Dept`는 소속 직원 목록과 별도로 한 명의 직원을 부서장으로 참조한다.
+
+```text
+Dept
+ ├─ employees : 해당 부서에 소속된 여러 직원
+ └─ leader    : 부서장 한 명
+```
+
+이를 통해 부서장 이름이나 사번을 단순 값으로 저장하지 않고 실제 `Employees` 엔티티와 관계를 맺는다.
+
+다만 현재 매핑만으로는 다음 업무 규칙까지 자동으로 보장되지는 않는다.
+
+> 부서장으로 지정된 직원은 반드시 해당 부서 소속이어야 한다.
+
+따라서 해당 규칙이 필요하다면 Service 계층의 검증이나 추가적인 데이터 제약을 고려할 수 있다.
+
+---
+
+#### `EmpBadge`가 필요한 이유
+
+직원과 배지는 다대다 관계이다.
+
+```text
+한 직원 → 여러 배지 보유 가능
+한 배지 → 여러 직원에게 부여 가능
+```
+
+따라서 개념적으로는 다음 관계가 성립한다.
+
+```text
+Employees N ── M BadgeMaster
+```
+
+현재는 이를 직접 `@ManyToMany`로 표현하지 않고 `EmpBadge`라는 연결 엔티티를 사용한다.
+
+```text
+Employees 1 ── N EmpBadge N ── 1 BadgeMaster
+```
+
+`EmpBadge`는 단순히 직원과 배지를 연결하는 역할만 하는 것이 아니라 다음과 같이 관계 자체의 정보를 가진다.
+
+```text
+부여일
+종료일
+```
+
+즉 `EmpBadge`가 표현하는 것은 단순한
+
+```text
+"직원 A가 배지 B를 가지고 있다."
+```
+
+가 아니라,
+
+```text
+"직원 A에게 배지 B가 언제부터 언제까지 부여되었다."
+```
+
+라는 배지 부여 이력이다.
+
+이처럼 **두 엔티티의 관계 자체에 별도로 관리해야 할 데이터가 존재하는 경우 연결 엔티티로 분리하여 표현할 수 있다.**
+
+---
+
+### `Annual` 복합키
+
+현재 `Annual`은 `@IdClass(AnnualPK.class)`를 사용하며 다음 두 값을 조합하여 한 행을 식별한다.
+
+```text
+annualYear + employee
+```
+
+따라서 복합키가 표현하는 업무 규칙은 다음과 같다.
+
+> **한 사원에게 같은 연도의 연차 집계 행은 하나만 존재한다.**
+
+예를 들어 다음 데이터는 서로 다른 행이 될 수 있다.
+
+```text
+사원 a0001 + 2025년
+사원 a0001 + 2026년
+사원 a0002 + 2026년
+```
+
+반면 다음 조합은 중복해서 존재하면 안 된다.
+
+```text
+사원 a0001 + 2026년
+사원 a0001 + 2026년
+```
+
+즉 복합키는 단순히 PK 컬럼을 여러 개 사용한 것이 아니라,
+
+```text
+직원 + 연도
+      ↓
+연차 집계 1건
+```
+
+이라는 업무 규칙을 데이터 구조에 반영하고 있다.
+
+---
+
+### 복합키 매핑 검토 항목
+
+`@IdClass` 기반 복합키를 사용할 때는 단순히 애플리케이션이 실행되는지만 확인하는 것이 아니라 엔티티와 식별자 클래스가 올바르게 대응하는지도 확인해야 한다.
+
+#### 1. 식별자 클래스의 `Serializable` 구현
+
+`@IdClass`에 사용하는 식별자 클래스는 `Serializable`을 구현해야 한다.
+
+```java
+public class AnnualPK implements Serializable {
+    ...
+}
+```
+
+복합키가 엔티티의 식별자로 사용되기 때문에 JPA가 식별자를 직렬화할 수 있어야 한다.
+
+---
+
+#### 2. 엔티티와 키 클래스의 필드명 대응
+
+`Annual`에서 PK를 구성하는 필드명과 `AnnualPK`의 필드명은 서로 대응해야 한다.
+
+예를 들어 엔티티가 다음과 같이 구성되어 있다면,
+
+```java
+@Id
+private String annualYear;
+
+@Id
+@ManyToOne
+private Employees employees;
+```
+
+`AnnualPK`에서도 이 두 식별자를 표현하는 필드가 올바르게 대응해야 한다.
+
+---
+
+#### 3. 관계 필드의 키 타입 확인
+
+복합키를 구성하는 값이 일반 컬럼이 아니라 `@ManyToOne`과 같은 관계 필드인 경우에는 특히 주의해야 한다.
+
+`Annual`의 `employees`는 `Employees` 엔티티를 참조하지만, 실제 DB에서 식별에 사용하는 값은 `Employees`의 PK이다.
+
+현재 `Employees`의 PK는 다음과 같다.
+
+```java
+@Id
+@Column(name = "emp_id")
+private String id;
+```
+
+따라서 `AnnualPK`에서 직원 식별자를 표현하는 타입 역시 부모 엔티티인 `Employees`의 ID 타입인 `String`과 올바르게 대응하는지 확인해야 한다.
+
+즉 확인해야 할 핵심은 다음과 같다.
+
+```text
+Annual.employees
+      ↓
+Employees.id
+      ↓
+String
+
+AnnualPK의 대응 필드
+      ↓
+String인지 확인
+```
+
+---
+
+### 복합키 설계 대안
+
+현재의 `@IdClass` 방식 외에도 같은 업무 규칙을 표현하는 다른 방법이 있다.
+
+#### 대안 1. 단일 PK + Unique 제약
+
+별도의 단일 ID를 PK로 사용하고,
+
+```text
+id
+employee_id
+annual_year
+```
+
+`employee_id + annual_year` 조합에는 Unique 제약을 설정할 수 있다.
+
+```text
+PK
+→ id
+
+업무 규칙
+→ UNIQUE(employee_id, annual_year)
+```
+
+이 경우 엔티티의 식별자는 단순해지면서도,
+
+> 한 직원에게 같은 연도의 연차 집계는 한 건만 존재한다.
+
+라는 업무 규칙은 DB의 Unique 제약으로 유지할 수 있다.
+
+---
+
+#### 대안 2. `@EmbeddedId` + `@MapsId`
+
+복합키 자체를 별도의 값 객체로 표현하는 방법도 있다.
+
+```text
+AnnualId
+ ├─ empId
+ └─ annualYear
+```
+
+이를 `@EmbeddedId`로 사용하고, 직원과의 관계를 `@MapsId`로 연결할 수 있다.
+
+이 방식은 복합키 자체를 하나의 객체로 명시적으로 표현할 수 있다는 장점이 있다.
+
+---
+
+### 현재 구조에 대한 판단
+
+현재 `Annual`의 복합키는 다음 업무 규칙을 표현한다.
+
+> **한 사원에게 같은 연도의 연차 집계 데이터는 하나만 존재한다.**
+
+따라서 복합키를 사용하는 이유 자체는 업무 모델과 연결되어 있다.
+
+다만 `@IdClass`, `@EmbeddedId`, 단일 PK 중 어떤 어노테이션을 사용하는지가 가장 중요한 것은 아니다.
+
+핵심은 다음 규칙이 실제 DB 구조에서 보장되는지이다.
+
+```text
+(employee_id, annual_year)
+조합은 반드시 유일해야 한다.
+```
+
+따라서 향후 구조를 개선한다면 구현 방식의 편의성과 가독성을 비교하되, 이 업무 규칙이 PK 또는 Unique 제약을 통해 DB 수준에서 계속 보장되도록 해야 한다.
+
+
+
+</details>
+

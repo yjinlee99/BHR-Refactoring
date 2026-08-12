@@ -16,7 +16,7 @@ public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
-    public void saveOrUpdate( String empId, String token) {
+    public void saveOrUpdate( String empId, String token ) {
         refreshTokenRepository.findByEmpId(empId)
                 .ifPresentOrElse(
                         refreshToken ->
@@ -29,7 +29,7 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public void rotate( String oldToken, String newToken) {
+    public void rotate( String oldToken, String newToken ) {
         RefreshToken refreshToken =
                 refreshTokenRepository
                         .findByToken(oldToken)

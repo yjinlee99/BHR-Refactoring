@@ -1161,3 +1161,203 @@ UNIQUE(employee_id, annual_year)
 
 </details>
 
+<details>
+<summary><b>2026-08-27 —  Security 정책 테스트 및 접근 제어 개선</b></summary>
+
+### 1. 문제 상황
+
+기존 `SecurityConfig`에서는 여러 API가 넓은 `permitAll()` 범위에 포함되어 있었다.
+
+특히 관리자 기능인 다음 API도 인증 없이 접근 가능한 상태였다.
+
+- `/api/admin/badge/**`
+- `/api/join`
+- 일부 `/employees/**` 관련 API
+- 기타 관리자 기능 API
+
+또한 기존 테스트에서는 Security Filter를 제외하고 있어 애플리케이션 테스트가 통과하더라도 실제 인증/인가 정책이 정상적으로 동작하는지 확인하기 어려웠다.
+
+따라서 Security Filter를 활성화한 통합 테스트를 추가하여 다음 정책을 검증하도록 했다.
+
+- 인증되지 않은 사용자가 보호 API에 접근하면 `401 Unauthorized`
+- 로그인했지만 권한이 부족하면 `403 Forbidden`
+- 일반 직원은 관리자 API에 접근할 수 없음
+- 관리자 권한을 가진 사용자만 관리자 API에 접근 가능
+- 공개 API만 인증 없이 접근 가능
+
+
+### 2. 권한 정책표
+
+| 구분 | API | 접근 정책 |
+| --- | --- | --- |
+| 공개 | `/login` | 인증 없이 접근 가능 |
+| 공개 | `/api/login` | 인증 없이 접근 가능 |
+| 공개 | `/api/auth/refresh` | 인증 없이 접근 가능 |
+| 공개 | `/api/auth/logout` | 인증 없이 접근 가능 |
+| 공개 | `/uploads/**` | 인증 없이 접근 가능 |
+| 공개 | `/static/**` | 인증 없이 접근 가능 |
+| 사용자 | `/attendance/**` | 로그인 필요 |
+| 사용자 | `/annualList/**` | 로그인 필요 |
+| 사용자 | `/annualSave` | 로그인 필요 |
+| 사용자 | `/myAnnual/**` | 로그인 필요 |
+| 사용자 | `/api/hrCard/**` | 로그인 필요 |
+| 사용자 | `/hrCard/**` | 로그인 필요 |
+| 사용자 | `/emp/**` | 로그인 필요 |
+| 관리자 | `/api/join` | `MANAGER`, `HRMANAGER` |
+| 관리자 | `/api/join/**` | `MANAGER`, `HRMANAGER` |
+| 관리자 | `/employees/**` | `MANAGER`, `HRMANAGER` |
+| 관리자 | `/annualTotal/**` | `MANAGER`, `HRMANAGER` |
+| 관리자 | `/status/**` | `MANAGER`, `HRMANAGER` |
+| 관리자 | `/api/admin/**` | `MANAGER`, `HRMANAGER` |
+
+
+### 3. 기존 Security 설정에서 확인된 문제
+
+기존 설정에는 관리자 API가 `permitAll()`에 포함되어 있었다.
+
+```java
+.requestMatchers(
+    "/api/join",
+    "/api/admin/badge/*"
+).permitAll()
+```
+
+이 때문에 인증되지 않은 사용자나 일반 직원도 관리자 API까지 요청을 전달할 수 있었다.
+
+Security Filter를 활성화한 테스트에서 다음 결과를 확인했다.
+
+| 테스트 상황 | 기대 결과 | 기존 결과 |
+| --- | --- | --- |
+| 인증 없이 `/api/admin/badge/list` 접근 | 401 | 200 |
+| 일반 직원이 `/api/admin/badge/list` 접근 | 403 | 200 |
+| 인증 없이 `/api/join` 접근 | 401 | 400 |
+| 일반 직원이 `/api/join/new` 접근 | 403 | 500 |
+
+`/api/join`에서 반환된 400은 Security 단계에서 차단된 것이 아니라 Controller까지 요청이 전달된 뒤 DTO Validation이 실행되어 발생한 응답이었다.
+
+또한 `/api/join/new`의 500 역시 권한 검증 전에 Controller와 Service까지 요청이 전달되면서 테스트 DB 데이터 부족으로 예외가 발생한 결과였다.
+
+즉 관리자 API가 Security 단계에서 정상적으로 차단되지 않고 있음을 테스트를 통해 확인할 수 있었다.
+
+
+### 4. Security 정책 수정
+
+공개 API, 관리자 API, 일반 인증 API를 구분하도록 요청 규칙을 정리했다.
+
+```java
+.authorizeHttpRequests(auth -> auth
+
+    // 공개 API
+    .requestMatchers(
+        "/login",
+        "/api/login",
+        "/api/auth/refresh",
+        "/api/auth/logout",
+        "/uploads/**",
+        "/static/**"
+    ).permitAll()
+
+    // 관리자 API
+    .requestMatchers(
+        "/api/join",
+        "/api/join/**",
+        "/api/admin/**",
+        "/employees/**",
+        "/annualTotal/**",
+        "/status/**"
+    ).hasAnyRole("MANAGER", "HRMANAGER")
+
+    // 나머지 API
+    .anyRequest().authenticated()
+)
+```
+
+기존의 넓은 `/*` 공개 패턴과 관리자 API에 적용되어 있던 `permitAll()`을 제거하여 세부 권한 정책이 우선 적용되도록 수정했다.
+
+
+### 5. 401과 403 응답 구분
+
+인증 여부와 권한 부족을 명확하게 구분하기 위해 예외 처리 정책을 설정했다.
+
+```java
+.exceptionHandling(exception -> exception
+    .authenticationEntryPoint((request, response, authException) ->
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+    )
+    .accessDeniedHandler((request, response, accessDeniedException) ->
+        response.sendError(HttpServletResponse.SC_FORBIDDEN)
+    )
+)
+```
+
+각 상황의 응답은 다음과 같다.
+
+| 상황 | 응답 |
+| --- | --- |
+| JWT 없음 | 401 Unauthorized |
+| 만료되거나 유효하지 않은 JWT | 401 Unauthorized |
+| 로그인했지만 필요한 역할 없음 | 403 Forbidden |
+| 필요한 역할 보유 | 요청 처리 계속 |
+
+
+### 6. 테스트
+
+Security Filter가 실제로 적용되는 상태에서 `MockMvc` 통합 테스트를 작성했다.
+
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class SecurityPolicyIntegrationTest {
+}
+```
+
+일반 직원 권한은 실제 프로젝트의 역할 값인 `EMPLOYEE`를 사용했다.
+
+```java
+@WithMockUser(
+    username = "employee",
+    roles = "EMPLOYEE"
+)
+```
+
+주요 테스트 항목은 다음과 같다.
+
+- 인증되지 않은 사용자의 관리자 API 접근 → 401
+- 일반 직원의 관리자 API 접근 → 403
+- `MANAGER`의 관리자 API 접근 → 허용
+- 공개 API의 비로그인 접근 → 허용
+
+
+### 7. 개선 결과
+
+수정 전에는 관리자 API가 넓은 `permitAll()` 범위에 포함되어 Security 검증 없이 Controller까지 요청이 전달될 수 있었다.
+
+수정 후에는 인증 및 역할에 따라 요청을 Controller 이전 단계에서 차단하도록 변경했다.
+
+```text
+Before
+
+인증 없음
+→ 관리자 API
+→ Controller 진입 가능
+
+
+After
+
+인증 없음
+→ 관리자 API
+→ 401 Unauthorized
+
+EMPLOYEE
+→ 관리자 API
+→ 403 Forbidden
+
+MANAGER / HRMANAGER
+→ 관리자 API
+→ 요청 처리
+```
+
+Security 설정을 단순히 선언하는 것에서 끝내지 않고 통합 테스트를 통해 실제 요청 결과를 검증하여 인증 및 역할 기반 접근 제어 정책을 테스트로 고정했다.
+</details>
+

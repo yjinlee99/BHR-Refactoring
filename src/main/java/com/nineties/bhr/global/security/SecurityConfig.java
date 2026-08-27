@@ -5,6 +5,7 @@ import com.nineties.bhr.global.security.jwt.JWTUtil;
 import com.nineties.bhr.global.security.jwt.LoginFilter;
 import com.nineties.bhr.login.service.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -88,18 +89,39 @@ public class SecurityConfig {
                 .httpBasic((auth) -> auth.disable());
         //경로별 인가 작업
         http
-                .authorizeHttpRequests((auth) -> auth
+                .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers("/api/hrCard/*","/api/join","/*","/login", "/api/login",
-                                "/api/login/join", "/employees/{id}", "/attendance/startWork",
-                                "/attendance/endWork","attendance/record/{id}",
-                                "myAnnual/{annualYear}/{empId}", "attendance/monthlySummary/{employeeId}","/api/admin/dashboard/metrics",
-                                "/emp/dashboard/{empId}", "/uploads/**", "/api/admin/badge/*","/static/**","/badge/**", "/emp/badge",
-                                "/api/auth/refresh", "/api/auth/logout").permitAll()
+                        // 공개
+                        .requestMatchers(
+                                "/login",
+                                "/api/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout",
+                                "/uploads/**",
+                                "/static/**"
+                        ).permitAll()
 
-                        .requestMatchers("/admin").hasRole("MANAGER")
-                        .requestMatchers("/admin").hasRole("HRMANAGER")
-                        .anyRequest().authenticated());
+                        // 관리자
+                        .requestMatchers(
+                                "/api/admin/**",
+                                "/api/join/**",
+                                "/employees/**",
+                                "/annualTotal/**",
+                                "/status/**"
+                        ).hasAnyRole("MANAGER", "HRMANAGER")
+
+                        // 그 외 API
+                        .anyRequest().authenticated()
+                )
+                .exceptionHandling(exception -> exception
+                        // 로그인되지 않은 사용자
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+
+                        // 로그인했지만 권한 부족
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN))
+                );
         http
                 .addFilterAt(new JWTFilter(jwtUtil), LoginFilter.class);
 

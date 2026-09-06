@@ -33,12 +33,11 @@
 - [x] 로컬 테스트 실행 환경 구성
 - [x] GitHub Actions CI 구성
 - [x] 프로젝트 구조 및 패키지 정리
-- [ ] 공통 예외 처리 구조 개선
-- [ ] 연차 도메인 리팩토링
-- [ ] 근태 도메인 리팩토링
-- [ ] 사원 도메인 리팩토링
-- [ ] 테스트 코드 작성
-- [ ] API 문서 작성
+- [x] 공통 예외 응답 구조 정리
+- [x] 주요 예외 공통 처리 적용
+- [x] Spring Security 정책 테스트 작성
+- [x] 로그인 API Security 정책 정리
+- [ ] 공통 예외 처리 미적용 영역 추가 정리
 
 ## 원본 프로젝트
 
@@ -1361,3 +1360,19 @@ MANAGER / HRMANAGER
 Security 설정을 단순히 선언하는 것에서 끝내지 않고 통합 테스트를 통해 실제 요청 결과를 검증하여 인증 및 역할 기반 접근 제어 정책을 테스트로 고정했다.
 </details>
 
+<details>
+<summary><b>2026-09-06 — 예외 응답 및 로그인 Security 테스트 보강</b></summary>
+
+- 요청 파라미터 누락 시 공통 예외 응답 형식 검증
+  - `status`, `code`, `message`, `path`, `timestamp` 확인
+
+- 로그인 API 경로 확인 및 Security 정책 수정
+  - 실제 로그인 처리는 `POST /login`에서 수행
+  - `GET /api/login`은 로그인 사용자 정보 조회 API로 확인
+  - `/api/login`을 `permitAll` 대상에서 제거
+
+- 로그인 API 테스트 수정
+  - 인증되지 않은 상태에서 `POST /login` 로그인 성공 여부 검증
+  - 테스트용 `CustomUserDetails` 구성
+  - Access Token 및 Refresh Token 발급 확인
+</details>

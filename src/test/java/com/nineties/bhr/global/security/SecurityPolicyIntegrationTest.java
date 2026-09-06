@@ -1,17 +1,26 @@
 package com.nineties.bhr.global.security;
 
+import com.nineties.bhr.employee.dto.CustomUserDetails;
+import com.nineties.bhr.employee.service.CustomEmployeeDetailsService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 
+import static org.hamcrest.Matchers.startsWith;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -21,6 +30,46 @@ class SecurityPolicyIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockBean
+    private CustomEmployeeDetailsService customEmployeeDetailsService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @BeforeEach
+    void setUpTestUser() {
+
+        CustomUserDetails testUser = mock(CustomUserDetails.class);
+
+        when(testUser.getEmpId())
+                .thenReturn("testEmp001");
+
+        when(testUser.getUsername())
+                .thenReturn("testuser");
+
+        when(testUser.getPassword())
+                .thenReturn(passwordEncoder.encode("1234"));
+
+        doReturn(AuthorityUtils.createAuthorityList("ROLE_EMPLOYEE"))
+                .when(testUser)
+                .getAuthorities();
+
+        when(testUser.isAccountNonExpired())
+                .thenReturn(true);
+
+        when(testUser.isAccountNonLocked())
+                .thenReturn(true);
+
+        when(testUser.isCredentialsNonExpired())
+                .thenReturn(true);
+
+        when(testUser.isEnabled())
+                .thenReturn(true);
+
+        when(customEmployeeDetailsService.loadUserByUsername("testuser"))
+                .thenReturn(testUser);
+    }
 
 
     @Test
@@ -77,15 +126,18 @@ class SecurityPolicyIntegrationTest {
     @DisplayName("로그인 API는 인증 없이 접근할 수 있다")
     void login_withoutAuthentication_isPublic() throws Exception {
 
-        mockMvc.perform(get("/api/login"))
-                .andExpect(result -> {
-                    int status = result.getResponse().getStatus();
-
-                    if (status == 401 || status == 403) {
-                        throw new AssertionError(
-                                "공개 API가 Security에 의해 차단되었습니다. status=" + status
-                        );
-                    }
-                });
+        mockMvc.perform(post("/login")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("username", "testuser")
+                        .param("password", "1234"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        "Authorization",
+                        startsWith("Bearer ")
+                ))
+                .andExpect(header().string(
+                        "Refresh-Token",
+                        startsWith("Bearer ")
+                ));
     }
 }

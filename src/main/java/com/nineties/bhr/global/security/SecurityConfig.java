@@ -94,7 +94,6 @@ public class SecurityConfig {
                         // 공개
                         .requestMatchers(
                                 "/login",
-                                "/api/login",
                                 "/api/auth/refresh",
                                 "/api/auth/logout",
                                 "/uploads/**",

@@ -188,12 +188,21 @@ class AdminBadgeControllerTest {
     }
 
     @Test
-    @DisplayName("배지 이름 파라미터가 누락되면 400을 반환한다")
+    @DisplayName("배지 이름 파라미터가 누락되면 공통 예외 형식으로 400을 반환한다")
     void activateBadge_missingBadgeName() throws Exception {
         mockMvc.perform(
                         post("/api/admin/badge/activate")
                 )
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code")
+                        .value("MISSING_REQUEST_PARAMETER"))
+                .andExpect(jsonPath("$.message")
+                        .value("필수 요청 파라미터가 누락되었습니다."))
+                .andExpect(jsonPath("$.path")
+                        .value("/api/admin/badge/activate"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
 
